@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkouts } from '../context/WorkoutContext.jsx'
 import Calendar from './Calendar.jsx'
 
@@ -37,64 +37,211 @@ function fmtDuration(sec) {
   return m > 0 ? `${m} мин${s ? ` ${s} сек` : ''}` : `${s} сек`
 }
 
-function PlannedExerciseItem({ ex, selKey }) {
-  const { removePlannedExercise } = useWorkouts()
-  const [showTechnique, setShowTechnique] = useState(false)
+/* ── Таймер (используется в модалке для отдыха между подходами) ── */
+function MiniTimer({ total, onDone, onSkip }) {
+  const [left, setLeft] = useState(total)
+  const ref = useRef(null)
+  useEffect(() => {
+    ref.current = setInterval(() => {
+      setLeft(l => { if (l <= 1) { clearInterval(ref.current); onDone(); return 0 } return l - 1 })
+    }, 1000)
+    return () => clearInterval(ref.current)
+  }, [])
+  const pct = ((total - left) / total) * 100
+  const r = 30, circ = 2 * Math.PI * r
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative w-20 h-20">
+        <svg className="w-20 h-20 -rotate-90" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+          <circle cx="50" cy="50" r={r} fill="none" stroke={left <= 5 ? '#f87171' : '#627d98'}
+            strokeWidth="8" strokeDasharray={circ}
+            strokeDashoffset={circ * (1 - pct / 100)} strokeLinecap="round"
+            className="transition-all duration-700" />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`font-bold text-xl leading-none ${left <= 5 ? 'text-red-400' : 'text-slate-100'}`}>{left}</span>
+          <span className="text-slate-500 text-[10px] mt-0.5">сек</span>
+        </div>
+      </div>
+      {onSkip && (
+        <button onClick={() => { clearInterval(ref.current); onSkip() }}
+          className="text-xs text-slate-600 hover:text-slate-400 transition-colors">
+          Пропустить →
+        </button>
+      )}
+    </div>
+  )
+}
+
+/* ── Модальная карточка упражнения ── */
+function ExerciseDetailModal({ ex, onClose, onStart }) {
   const lv = LEVEL_LABELS[ex.level]
+  const catIcon = CATEGORY_ICONS[ex.category] ?? ''
+  const [session, setSession] = useState(null) // null | { setsDone, phase } 'idle'|'rest'
+
+  // Блокировка скролла
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  function startSession() { setSession({ setsDone: 0, phase: 'idle' }) }
+  function finishSet() {
+    const next = (session.setsDone ?? 0) + 1
+    if (next >= ex.defaultSets) {
+      setSession(null)
+      onClose()
+    } else if (ex.defaultRest > 0) {
+      setSession({ setsDone: next, phase: 'rest' })
+    } else {
+      setSession({ setsDone: next, phase: 'idle' })
+    }
+  }
+  function finishRest() { setSession(s => ({ ...s, phase: 'idle' })) }
 
   return (
-    <li className="py-3 flex flex-col gap-2 border-b border-slate-800/60 last:border-0">
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-slate-200">{ex.name}</p>
-          {ex.muscles && (
-            <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{ex.muscles}</p>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 pb-8 flex flex-col gap-4"
+        style={{ background: '#1a2235', border: '1px solid rgba(200,215,235,0.12)', maxHeight: '92dvh', overflowY: 'auto' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Ручка */}
+        <div className="w-10 h-1 rounded-full bg-slate-700 mx-auto" />
+
+        {/* Заголовок */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs text-slate-500 mb-1">{catIcon} {ex.category}</p>
+            <h2 className="text-xl font-black text-slate-100 leading-tight">{ex.name}</h2>
+            {ex.muscles && <p className="text-xs text-slate-500 mt-1 leading-snug">{ex.muscles}</p>}
+          </div>
+          <button onClick={onClose} className="text-slate-600 hover:text-slate-300 text-xl leading-none flex-shrink-0 mt-1">✕</button>
+        </div>
+
+        {/* Бейджи */}
+        <div className="flex flex-wrap gap-2">
+          <span className="badge bg-slate-800 border border-slate-700 text-slate-300 text-xs">
+            📋 {ex.defaultSets} подх. × {ex.defaultReps != null ? `${ex.defaultReps} повт.` : `${ex.defaultDuration ?? '—'} сек.`}
+          </span>
+          {ex.defaultRest != null && (
+            <span className="badge bg-slate-800 border border-slate-700 text-slate-400 text-xs">⏸ Отдых: {ex.defaultRest} с</span>
+          )}
+          {ex.defaultTempo && (
+            <span className="badge bg-slate-800 border border-slate-700 text-slate-500 text-xs italic">🎵 {ex.defaultTempo}</span>
+          )}
+          {lv && (
+            <span className={`badge bg-slate-800 border border-slate-700 text-xs font-semibold ${lv.color}`}>{lv.label}</span>
           )}
         </div>
-        <button
-          onClick={() => removePlannedExercise(selKey, ex.id)}
-          className="text-slate-700 hover:text-red-400 transition-colors text-sm px-1 flex-shrink-0 mt-0.5"
-        >✕</button>
-      </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        <span className="badge bg-slate-800 border border-slate-700/60 text-slate-300 text-xs">
-          {ex.defaultSets} × {ex.defaultReps != null ? `${ex.defaultReps} повт.` : `${ex.defaultDuration ?? '—'} сек.`}
-        </span>
-        {ex.defaultRest != null && (
-          <span className="badge bg-slate-800 border border-slate-700/60 text-slate-400 text-xs">
-            ⏸ {ex.defaultRest} с
-          </span>
-        )}
-        {ex.defaultTempo && (
-          <span className="badge bg-slate-800 border border-slate-700/60 text-slate-500 text-xs italic">
-            {ex.defaultTempo}
-          </span>
-        )}
-        {lv && (
-          <span className={`badge bg-slate-800 border border-slate-700/60 text-xs font-semibold ${lv.color}`}>
-            {lv.label}
-          </span>
-        )}
-      </div>
-
-      {ex.technique && (
-        <>
-          <button
-            className="text-slate-600 hover:text-slate-300 text-xs text-left font-medium transition-colors w-fit"
-            onClick={() => setShowTechnique(s => !s)}
-          >
-            {showTechnique ? '▲ Скрыть технику' : '▾ Показать технику'}
-          </button>
-          {showTechnique && (
-            <p className="text-xs text-slate-300 leading-relaxed rounded-xl p-3"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(200,215,230,0.08)' }}>
+        {/* Техника */}
+        {ex.technique && (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Техника</p>
+            <p className="text-sm text-slate-300 leading-relaxed rounded-xl p-3"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(200,215,230,0.08)' }}>
               {ex.technique}
             </p>
+          </div>
+        )}
+
+        {/* Мини-сессия */}
+        {!session ? (
+          <button className="btn-primary w-full py-3 text-base mt-1" onClick={startSession}>
+            ▸ Начать упражнение
+          </button>
+        ) : session.phase === 'rest' ? (
+          <div className="flex flex-col items-center gap-3 py-2">
+            <p className="text-xs text-slate-500 uppercase tracking-widest">⏸ Отдых перед подходом {session.setsDone + 1}</p>
+            <MiniTimer key={`rest-${session.setsDone}`} total={ex.defaultRest ?? 30} onDone={finishRest} onSkip={finishRest} />
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3 py-2">
+            <p className="text-sm font-bold text-slate-300">
+              Подход {session.setsDone + 1} / {ex.defaultSets}
+            </p>
+            {ex.defaultDuration ? (
+              <>
+                <MiniTimer key={`ex-${session.setsDone}`} total={ex.defaultDuration} onDone={finishSet} />
+              </>
+            ) : (
+              <button className="btn-primary w-full py-3 text-base" onClick={finishSet}>
+                ✓ Подход выполнен
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ── Элемент плана ── */
+function PlannedExerciseItem({ ex, selKey, onStartExercise }) {
+  const { removePlannedExercise } = useWorkouts()
+  const lv = LEVEL_LABELS[ex.level]
+  const catIcon = CATEGORY_ICONS[ex.category] ?? ''
+  const [showModal, setShowModal] = useState(false)
+
+  return (
+    <>
+      <li className="py-3 flex flex-col gap-2 border-b border-slate-800/60 last:border-0">
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <button
+              className="text-sm font-semibold text-slate-200 text-left hover:text-white transition-colors leading-snug"
+              onClick={() => setShowModal(true)}
+            >
+              {ex.name}
+            </button>
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              {ex.category && (
+                <span className="text-[10px] text-slate-500 font-medium">{catIcon} {ex.category}</span>
+              )}
+              {ex.muscles && (
+                <span className="text-[10px] text-slate-600 leading-snug">· {ex.muscles}</span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={() => removePlannedExercise(selKey, ex.id)}
+            className="text-slate-700 hover:text-red-400 transition-colors text-sm px-1 flex-shrink-0 mt-0.5"
+          >✕</button>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          <span className="badge bg-slate-800 border border-slate-700/60 text-slate-300 text-xs">
+            {ex.defaultSets} × {ex.defaultReps != null ? `${ex.defaultReps} повт.` : `${ex.defaultDuration ?? '—'} сек.`}
+          </span>
+          {ex.defaultRest != null && (
+            <span className="badge bg-slate-800 border border-slate-700/60 text-slate-400 text-xs">
+              ⏸ {ex.defaultRest} с
+            </span>
           )}
-        </>
+          {ex.defaultTempo && (
+            <span className="badge bg-slate-800 border border-slate-700/60 text-slate-500 text-xs italic">
+              {ex.defaultTempo}
+            </span>
+          )}
+          {lv && (
+            <span className={`badge bg-slate-800 border border-slate-700/60 text-xs font-semibold ${lv.color}`}>
+              {lv.label}
+            </span>
+          )}
+        </div>
+      </li>
+
+      {showModal && (
+        <ExerciseDetailModal
+          ex={ex}
+          onClose={() => setShowModal(false)}
+          onStart={() => { setShowModal(false); onStartExercise(ex) }}
+        />
       )}
-    </li>
+    </>
   )
 }
 
@@ -206,7 +353,7 @@ function ExercisePicker({ selKey }) {
 }
 
 export default function TodayPage({ onStartWorkout }) {
-  const { sessions, plannedWorkouts, removePlannedExercise } = useWorkouts()
+  const { sessions, plannedWorkouts } = useWorkouts()
   const today = new Date()
   const [selectedDate, setSelectedDate] = useState(today)
   const [showPicker, setShowPicker] = useState(false)
@@ -234,11 +381,25 @@ export default function TodayPage({ onStartWorkout }) {
       exercises: plannedList.map(e => ({
         name: e.name,
         sets: e.defaultSets,
-        reps: String(e.defaultReps).match(/^\d/) ? parseInt(e.defaultReps) : null,
-        duration: String(e.defaultReps).includes('сек') ? 30 : null,
+        reps: e.defaultReps ?? null,
+        duration: e.defaultDuration ?? null,
+        restSeconds: e.defaultRest ?? 30,
       })),
     }
     onStartWorkout(workout)
+  }
+
+  function startSingleExercise(ex) {
+    const totalSec = ex.defaultSets * ((ex.defaultDuration ?? 45) + (ex.defaultRest ?? 30))
+    onStartWorkout({
+      id: 'single-' + ex.id,
+      name: ex.name,
+      description: ex.category,
+      category: 'custom',
+      difficulty: ex.level ?? 'intermediate',
+      duration: Math.max(5, Math.ceil(totalSec / 60)),
+      exercises: [{ name: ex.name, sets: ex.defaultSets, reps: ex.defaultReps ?? null, duration: ex.defaultDuration ?? null, restSeconds: ex.defaultRest ?? 30 }],
+    })
   }
 
   const dateStr = `${WEEKDAYS[selectedDate.getDay()]}, ${selectedDate.getDate()} ${MONTHS_GEN[selectedDate.getMonth()]}`
@@ -296,7 +457,7 @@ export default function TodayPage({ onStartWorkout }) {
           <>
             <ul className="mt-2">
               {plannedList.map(ex => (
-                <PlannedExerciseItem key={ex.id} ex={ex} selKey={selKey} />
+                <PlannedExerciseItem key={ex.id} ex={ex} selKey={selKey} onStartExercise={startSingleExercise} />
               ))}
             </ul>
             {(isToday || isFuture) && (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useWorkouts } from '../context/WorkoutContext.jsx'
 
 function pad(n) { return String(n).padStart(2, '0') }
@@ -61,12 +61,22 @@ function CircleTimer({ total, onDone, color = '#94a3b8', label = 'сек', onSki
 }
 
 /** Одно упражнение */
-function ExerciseBlock({ exercise, idx, restSeconds }) {
+function ExerciseBlock({ exercise, idx, restSeconds, onAllDone, locked }) {
   const total = exercise.sets
   const isTimed = exercise.duration !== null
   const [done, setDone] = useState(0)
   const [phase, setPhase] = useState('idle') // 'idle' | 'exercise' | 'rest'
   const [activeSet, setActiveSet] = useState(null)
+  const notifiedRef = useRef(false)
+
+  const allDone = done >= total
+
+  useEffect(() => {
+    if (allDone && !notifiedRef.current) {
+      notifiedRef.current = true
+      onAllDone?.(idx)
+    }
+  }, [allDone])
 
   function finishSet() {
     const next = done + 1
@@ -91,10 +101,8 @@ function ExerciseBlock({ exercise, idx, restSeconds }) {
     }
   }
 
-  const allDone = done >= total
-
   return (
-    <div className={`rounded-2xl p-4 transition-all duration-300 ${allDone ? 'opacity-50' : ''}`}
+    <div className={`rounded-2xl p-4 transition-all duration-300 ${allDone ? 'opacity-50' : locked ? 'opacity-30 pointer-events-none' : ''}`}
       style={{
         background: allDone ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.045)',
         border: allDone ? '1px solid rgba(200,215,230,0.06)' : '1px solid rgba(200,215,230,0.11)',
@@ -202,6 +210,16 @@ export default function WorkoutSession({ workout, onFinish }) {
   const [elapsed, setElapsed] = useState(0)
   const [done, setDone] = useState(false)
   const [restSeconds, setRestSeconds] = useState(30)
+  const [interExRestSec, setInterExRestSec] = useState(60)
+  const [interExRest, setInterExRest] = useState(null) // { afterIdx: number } | null
+
+  function handleExerciseDone(idx) {
+    if (idx < workout.exercises.length - 1 && interExRestSec > 0) {
+      setInterExRest({ afterIdx: idx })
+    }
+  }
+
+  function finishInterRest() { setInterExRest(null) }
 
   useEffect(() => {
     const interval = setInterval(() => setElapsed(e => e + 1), 1000)
@@ -246,7 +264,7 @@ export default function WorkoutSession({ workout, onFinish }) {
         </div>
       </div>
 
-      {/* Настройка таймера отдыха */}
+      {/* Настройка таймера отдыха между подходами */}
       <div className="flex items-center gap-2 px-1 flex-wrap">
         <span className="text-xs text-slate-500 uppercase tracking-widest flex-shrink-0">⏸ Отдых:</span>
         {[15, 30, 45, 60, 90].map(v => (
@@ -255,31 +273,62 @@ export default function WorkoutSession({ workout, onFinish }) {
             onClick={() => setRestSeconds(v)}
             className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all duration-150
               ${restSeconds === v ? 'text-slate-900 border-transparent' : 'text-slate-600 border-slate-800 hover:text-slate-300'}`}
-            style={restSeconds === v ? {
-              background: 'linear-gradient(135deg, #7a8fa6 0%, #b8cad9 100%)',
-            } : {}}
-          >
-            {v}с
-          </button>
+            style={restSeconds === v ? { background: 'linear-gradient(135deg, #7a8fa6 0%, #b8cad9 100%)' } : {}}
+          >{v}с</button>
         ))}
-        <input
-          type="number"
-          min={0}
-          max={600}
-          value={restSeconds}
+        <input type="number" min={0} max={600} value={restSeconds}
           onChange={e => setRestSeconds(Math.max(0, +e.target.value))}
           className="w-14 text-center text-xs font-bold rounded-lg py-1 text-slate-300"
-          style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(200,215,230,0.15)',
-          }}
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(200,215,230,0.15)' }}
+        />
+      </div>
+
+      {/* Настройка отдыха между упражнениями */}
+      <div className="flex items-center gap-2 px-1 flex-wrap">
+        <span className="text-xs text-slate-500 uppercase tracking-widest flex-shrink-0">🏃 Между упр.:</span>
+        {[30, 60, 90, 120].map(v => (
+          <button
+            key={v}
+            onClick={() => setInterExRestSec(v)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all duration-150
+              ${interExRestSec === v ? 'text-slate-900 border-transparent' : 'text-slate-600 border-slate-800 hover:text-slate-300'}`}
+            style={interExRestSec === v ? { background: 'linear-gradient(135deg, #5a6f82 0%, #8faabf 100%)' } : {}}
+          >{v}с</button>
+        ))}
+        <input type="number" min={0} max={600} value={interExRestSec}
+          onChange={e => setInterExRestSec(Math.max(0, +e.target.value))}
+          className="w-14 text-center text-xs font-bold rounded-lg py-1 text-slate-300"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(200,215,230,0.15)' }}
         />
       </div>
 
       {/* Упражнения */}
       <div className="flex flex-col gap-3">
         {workout.exercises.map((ex, i) => (
-          <ExerciseBlock key={i} exercise={ex} idx={i} restSeconds={restSeconds} />
+          <React.Fragment key={i}>
+            {interExRest?.afterIdx === i - 1 && (
+              <div className="card flex flex-col items-center gap-3 py-4"
+                style={{ border: '1px solid rgba(140,170,200,0.18)', background: 'rgba(140,170,200,0.06)' }}>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">🏃 Отдых перед следующим</p>
+                <p className="text-sm font-semibold text-slate-300 text-center">{workout.exercises[i].name}</p>
+                <CircleTimer
+                  key={`inter-${interExRest.afterIdx}`}
+                  total={interExRestSec}
+                  color="#627d98"
+                  label="сек"
+                  onDone={finishInterRest}
+                  onSkip={finishInterRest}
+                />
+              </div>
+            )}
+            <ExerciseBlock
+              exercise={ex}
+              idx={i}
+              restSeconds={ex.restSeconds ?? restSeconds}
+              onAllDone={handleExerciseDone}
+              locked={interExRest !== null && i > interExRest.afterIdx}
+            />
+          </React.Fragment>
         ))}
       </div>
 
