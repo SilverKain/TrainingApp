@@ -89,14 +89,21 @@ const DEFAULT_WORKOUTS = [
 const WorkoutContext = createContext(null)
 
 const WORKOUTS_VERSION = 'v2' // bump this to reset saved workouts
-const PLANNED_VERSION  = 'v1-march2026' // bump to reset planned schedule
+const PLANNED_VERSION  = 'v2-march2026' // bump to reset planned schedule
+
+// Разминки для тренировки A (верх тела): марш, махи руками, локти, кисти
+const WARMUP_A_IDS = ['e33', 'e43', 'e35', 'e36']
+// Разминки для тренировки B (низ тела): ходьба, тазобедренные, колени, динамические приседания
+const WARMUP_B_IDS = ['e49', 'e38', 'e39', 'e41']
+// Разминки для тренировки C (полное тело): марш, вращение корпусом, наклоны, выпады
+const WARMUP_C_IDS = ['e33', 'e37', 'e44', 'e46']
 
 // Тренировка A — Верх тела (Пн): Грудь, плечи, спина, трицепс
-const WORKOUT_A_IDS = ['e01', 'e04', 'e08', 'e12', 'e06']
+const WORKOUT_A_IDS = [...WARMUP_A_IDS, 'e01', 'e04', 'e08', 'e12', 'e06']
 // Тренировка B — Низ тела (Ср): Квадрицепс, ягодицы, бёдра, икры
-const WORKOUT_B_IDS = ['e13', 'e17', 'e14', 'e16', 'e18']
+const WORKOUT_B_IDS = [...WARMUP_B_IDS, 'e13', 'e17', 'e14', 'e16', 'e18']
 // Тренировка C — Полное тело (Пт): Всё тело
-const WORKOUT_C_IDS = ['e13', 'e01', 'e17', 'e21', 'e20', 'e26']
+const WORKOUT_C_IDS = [...WARMUP_C_IDS, 'e13', 'e01', 'e17', 'e21', 'e20', 'e26']
 
 // График март 2026: 3 раза в неделю (Пн/Ср/Пт), начало 2 марта
 const MARCH_SCHEDULE = {
