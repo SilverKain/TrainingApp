@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background: #1a2235;
+    @apply text-slate-100 min-h-screen;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  * {
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  /* Серебряная кнопка с градиентом */
+  .btn-primary {
+    background: linear-gradient(135deg, #7a8fa6 0%, #b8cad9 50%, #7a8fa6 100%);
+    @apply text-slate-900 font-bold py-2 px-4 rounded-xl transition-all duration-200 cursor-pointer shadow-md;
+    box-shadow: 0 2px 12px rgba(180,200,220,0.18), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #8fa3ba 0%, #c8dae8 50%, #8fa3ba 100%);
+    box-shadow: 0 4px 20px rgba(180,200,220,0.28), inset 0 1px 0 rgba(255,255,255,0.35);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 6px rgba(180,200,220,0.15);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: default;
+    transform: none;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 font-semibold py-2 px-4 rounded-xl transition-all duration-150 cursor-pointer border border-slate-700;
+  }
+  .btn-danger {
+    @apply bg-red-900 hover:bg-red-800 text-red-200 font-semibold py-2 px-4 rounded-xl transition-colors duration-150 cursor-pointer border border-red-800;
+  }
+
+  /* Карточка стеклянная */
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(200,215,235,0.12);
+    @apply rounded-2xl p-5;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.07);
+    backdrop-filter: blur(4px);
+  }
+
+  .input {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(200,215,235,0.18);
+    @apply text-slate-100 rounded-xl px-4 py-2 w-full transition-all duration-150 placeholder-slate-500;
+  }
+  .input:focus {
+    outline: none;
+    border-color: rgba(180,200,220,0.45);
+    box-shadow: 0 0 0 3px rgba(140,170,200,0.12);
+  }
+
+  .label {
+    @apply block text-xs font-semibold text-slate-400 mb-1 tracking-wider uppercase;
+  }
+  .badge {
+    @apply inline-block text-xs font-semibold px-2 py-0.5 rounded-full;
+  }
+
+  /* Серебряный текст-акцент */
+  .text-accent {
+    background: linear-gradient(135deg, #b0c4d8 0%, #e2eaf2 60%, #9fb3c8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Разделитель */
+  .divider {
+    @apply border-t border-slate-800;
+  }
+}

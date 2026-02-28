@@ -1,0 +1,297 @@
+import { useState, useEffect, useRef } from 'react'
+import { useWorkouts } from '../context/WorkoutContext.jsx'
+
+function pad(n) { return String(n).padStart(2, '0') }
+function fmtTotal(sec) {
+  const m = Math.floor(sec / 60), s = sec % 60
+  return `${pad(m)}:${pad(s)}`
+}
+
+/** Таймер обратного отсчёта (для подхода или отдыха) */
+function CircleTimer({ total, onDone, color = '#94a3b8', label = 'сек', onSkip }) {
+  const [left, setLeft] = useState(total)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    ref.current = setInterval(() => {
+      setLeft(l => {
+        if (l <= 1) { clearInterval(ref.current); onDone(); return 0 }
+        return l - 1
+      })
+    }, 1000)
+    return () => clearInterval(ref.current)
+  }, [])
+
+  const pct = ((total - left) / total) * 100
+  const r = 36, circ = 2 * Math.PI * r
+
+  return (
+    <div className="flex flex-col items-center gap-1 my-2">
+      <div className="relative w-24 h-24">
+        <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7" />
+          <circle
+            cx="50" cy="50" r={r}
+            fill="none"
+            stroke={left <= 5 ? '#f87171' : color}
+            strokeWidth="7"
+            strokeDasharray={circ}
+            strokeDashoffset={circ * (1 - pct / 100)}
+            strokeLinecap="round"
+            className="transition-all duration-700"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`font-bold text-2xl leading-none ${left <= 5 ? 'text-red-400' : 'text-slate-100'}`}>
+            {left}
+          </span>
+          <span className="text-slate-500 text-xs mt-0.5">{label}</span>
+        </div>
+      </div>
+      {onSkip && (
+        <button
+          onClick={() => { clearInterval(ref.current); onSkip() }}
+          className="text-xs text-slate-600 hover:text-slate-400 transition-colors mt-1"
+        >
+          Пропустить →
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Одно упражнение */
+function ExerciseBlock({ exercise, idx, restSeconds }) {
+  const total = exercise.sets
+  const isTimed = exercise.duration !== null
+  const [done, setDone] = useState(0)
+  const [phase, setPhase] = useState('idle') // 'idle' | 'exercise' | 'rest'
+  const [activeSet, setActiveSet] = useState(null)
+
+  function finishSet() {
+    const next = done + 1
+    setDone(next)
+    setActiveSet(null)
+    if (next < total && restSeconds > 0) {
+      setPhase('rest')
+    } else {
+      setPhase('idle')
+    }
+  }
+
+  function finishRest() { setPhase('idle') }
+
+  function handleSetClick(i) {
+    if (done !== i || phase !== 'idle') return
+    if (isTimed) {
+      setActiveSet(i)
+      setPhase('exercise')
+    } else {
+      finishSet()
+    }
+  }
+
+  const allDone = done >= total
+
+  return (
+    <div className={`rounded-2xl p-4 transition-all duration-300 ${allDone ? 'opacity-50' : ''}`}
+      style={{
+        background: allDone ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.045)',
+        border: allDone ? '1px solid rgba(200,215,230,0.06)' : '1px solid rgba(200,215,230,0.11)',
+        boxShadow: allDone ? 'none' : '0 2px 16px rgba(0,0,0,0.2)',
+      }}>
+
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-600 text-sm w-5 font-mono">{idx + 1}</span>
+            <h4 className={`font-bold text-base ${allDone ? 'line-through text-slate-600' : 'text-slate-100'}`}>
+              {exercise.name}
+            </h4>
+          </div>
+          <p className="text-xs text-slate-600 ml-7 mt-0.5">
+            {total} подх. × {isTimed ? `${exercise.duration} сек` : `${exercise.reps} повт.`}
+          </p>
+        </div>
+        {allDone && (
+          <span className="text-lg flex-shrink-0" style={{
+            background: 'linear-gradient(135deg, #7a8fa6 0%, #b8cad9 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}>✓</span>
+        )}
+      </div>
+
+      {/* Таймер упражнения */}
+      {phase === 'exercise' && activeSet !== null && (
+        <div className="flex justify-center mb-3">
+          <CircleTimer
+            key={`ex-${activeSet}`}
+            total={exercise.duration}
+            color="#94a3b8"
+            label="сек"
+            onDone={finishSet}
+          />
+        </div>
+      )}
+
+      {/* Таймер отдыха */}
+      {phase === 'rest' && (
+        <div className="flex flex-col items-center mb-3 py-1">
+          <p className="text-xs text-slate-500 mb-1 tracking-widest uppercase">⏸ Отдых</p>
+          <CircleTimer
+            key={`rest-${done}`}
+            total={restSeconds}
+            color="#627d98"
+            label="сек"
+            onDone={finishRest}
+            onSkip={finishRest}
+          />
+        </div>
+      )}
+
+      {/* Кнопки подходов */}
+      {phase !== 'rest' && (
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: total }).map((_, i) => {
+            const isDone = i < done
+            const isActive = phase === 'exercise' && activeSet === i
+            const isNext = i === done && phase === 'idle'
+
+            return (
+              <button
+                key={i}
+                onClick={() => handleSetClick(i)}
+                disabled={isDone || isActive || (!isNext)}
+                className={`flex-1 min-w-[56px] py-2 rounded-xl text-sm font-bold border transition-all duration-150
+                  ${isDone
+                    ? 'cursor-default border-transparent text-slate-700'
+                    : isActive
+                      ? 'cursor-default border-transparent animate-pulse'
+                      : isNext
+                        ? 'cursor-pointer'
+                        : 'cursor-not-allowed text-slate-700 border-slate-800 bg-transparent'
+                  }`}
+                style={isDone ? {
+                  background: 'rgba(140,165,190,0.12)',
+                  color: '#6b7fa0',
+                } : isActive ? {
+                  background: 'linear-gradient(135deg, #4a6275, #7a9ab5)',
+                  color: '#e2eaf2',
+                  border: '1px solid rgba(140,175,210,0.3)',
+                } : isNext ? {
+                  background: 'linear-gradient(135deg, #7a8fa6 0%, #b8cad9 50%, #7a8fa6 100%)',
+                  color: '#0f1a26',
+                  boxShadow: '0 2px 10px rgba(140,170,200,0.25)',
+                  border: 'none',
+                } : {}}
+              >
+                {isDone ? `✓ ${i + 1}` : isActive ? '⏱…' : isTimed ? `▸ ${i + 1}` : `${i + 1}`}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function WorkoutSession({ workout, onFinish }) {
+  const { logSession } = useWorkouts()
+  const [elapsed, setElapsed] = useState(0)
+  const [done, setDone] = useState(false)
+  const [restSeconds, setRestSeconds] = useState(30)
+
+  useEffect(() => {
+    const interval = setInterval(() => setElapsed(e => e + 1), 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  function handleFinish() {
+    logSession(workout.id, workout.name, elapsed)
+    setDone(true)
+    setTimeout(onFinish, 1800)
+  }
+
+  if (done) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-5 py-24">
+        <div className="text-6xl mb-2">🎉</div>
+        <h2 className="text-3xl font-black" style={{
+          background: 'linear-gradient(135deg, #b0c4d8 0%, #e2eaf2 60%, #8fa3ba 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+        }}>
+          Тренировка завершена!
+        </h2>
+        <p className="text-slate-500">Время: {fmtTotal(elapsed)}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4 max-w-lg mx-auto">
+      {/* Шапка тренировки */}
+      <div className="card flex items-center justify-between">
+        <div>
+          <p className="text-xs text-slate-600 uppercase tracking-widest mb-0.5">Тренировка</p>
+          <h2 className="text-xl font-black text-slate-100">{workout.name}</h2>
+          <p className="text-xs text-slate-600 mt-0.5">{workout.exercises.length} упр. · {workout.duration} мин</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-slate-600 mb-0.5 uppercase tracking-widest">Время</p>
+          <p className="font-mono text-3xl font-black text-slate-100">{fmtTotal(elapsed)}</p>
+        </div>
+      </div>
+
+      {/* Настройка таймера отдыха */}
+      <div className="flex items-center gap-2 px-1 flex-wrap">
+        <span className="text-xs text-slate-500 uppercase tracking-widest flex-shrink-0">⏸ Отдых:</span>
+        {[15, 30, 45, 60, 90].map(v => (
+          <button
+            key={v}
+            onClick={() => setRestSeconds(v)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all duration-150
+              ${restSeconds === v ? 'text-slate-900 border-transparent' : 'text-slate-600 border-slate-800 hover:text-slate-300'}`}
+            style={restSeconds === v ? {
+              background: 'linear-gradient(135deg, #7a8fa6 0%, #b8cad9 100%)',
+            } : {}}
+          >
+            {v}с
+          </button>
+        ))}
+        <input
+          type="number"
+          min={0}
+          max={600}
+          value={restSeconds}
+          onChange={e => setRestSeconds(Math.max(0, +e.target.value))}
+          className="w-14 text-center text-xs font-bold rounded-lg py-1 text-slate-300"
+          style={{
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(200,215,230,0.15)',
+          }}
+        />
+      </div>
+
+      {/* Упражнения */}
+      <div className="flex flex-col gap-3">
+        {workout.exercises.map((ex, i) => (
+          <ExerciseBlock key={i} exercise={ex} idx={i} restSeconds={restSeconds} />
+        ))}
+      </div>
+
+      <button className="btn-primary w-full py-4 text-base font-black mt-2" onClick={handleFinish}>
+        🏁 Завершить тренировку
+      </button>
+      <button
+        className="text-slate-700 hover:text-slate-400 text-sm text-center transition-colors pb-4"
+        onClick={onFinish}
+      >
+        Отменить
+      </button>
+    </div>
+  )
+}
