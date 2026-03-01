@@ -66,7 +66,7 @@ function MiniTimer({ total, onDone, onSkip }) {
       </div>
       {onSkip && (
         <button onClick={() => { clearInterval(ref.current); onSkip() }}
-          className="text-xs text-slate-600 hover:text-slate-400 transition-colors">
+          className="px-4 py-1.5 rounded-xl text-xs font-bold border transition-all duration-150 text-slate-400 border-slate-700 hover:text-slate-200 hover:border-slate-500">
           Пропустить →
         </button>
       )}
@@ -363,6 +363,11 @@ export default function TodayPage({ onStartWorkout }) {
         reps: e.defaultReps ?? null,
         duration: e.defaultDuration ?? null,
         restSeconds: e.defaultRest ?? 30,
+        muscles: e.muscles ?? null,
+        technique: e.technique ?? null,
+        level: e.level ?? null,
+        category: e.category ?? null,
+        tempo: e.defaultTempo ?? null,
       })),
     }
     onStartWorkout(workout)
@@ -377,7 +382,7 @@ export default function TodayPage({ onStartWorkout }) {
       category: 'custom',
       difficulty: ex.level ?? 'intermediate',
       duration: Math.max(5, Math.ceil(totalSec / 60)),
-      exercises: [{ name: ex.name, sets: ex.defaultSets, reps: ex.defaultReps ?? null, duration: ex.defaultDuration ?? null, restSeconds: ex.defaultRest ?? 30 }],
+      exercises: [{ name: ex.name, sets: ex.defaultSets, reps: ex.defaultReps ?? null, duration: ex.defaultDuration ?? null, restSeconds: ex.defaultRest ?? 30, muscles: ex.muscles ?? null, technique: ex.technique ?? null, level: ex.level ?? null, category: ex.category ?? null, tempo: ex.defaultTempo ?? null }],
     })
   }
 

@@ -178,13 +178,14 @@ export function WorkoutProvider({ children }) {
     setWorkouts(prev => prev.filter(w => w.id !== id))
   }
 
-  function logSession(workoutId, workoutName, durationSeconds) {
+  function logSession(workoutId, workoutName, durationSeconds, exerciseCount) {
     const session = {
       id: 's' + Date.now(),
       workoutId,
       workoutName,
       date: new Date().toISOString(),
       duration: durationSeconds,
+      exerciseCount: exerciseCount ?? null,
     }
     setSessions(prev => [session, ...prev])
   }

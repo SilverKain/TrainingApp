@@ -51,7 +51,7 @@ function CircleTimer({ total, onDone, color = '#94a3b8', label = 'сек', onSki
       {onSkip && (
         <button
           onClick={() => { clearInterval(ref.current); onSkip() }}
-          className="text-xs text-slate-600 hover:text-slate-400 transition-colors mt-1"
+          className="px-4 py-1.5 rounded-xl text-xs font-bold border transition-all duration-150 text-slate-400 border-slate-700 hover:text-slate-200 hover:border-slate-500 mt-1"
         >
           Пропустить →
         </button>
@@ -60,8 +60,66 @@ function CircleTimer({ total, onDone, color = '#94a3b8', label = 'сек', onSki
   )
 }
 
+/** Модальное окно с деталями упражнения */
+function ExerciseInfoModal({ exercise, onClose }) {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-3"
+      style={{ background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div className="w-full max-w-lg rounded-3xl p-5 pb-7 flex flex-col gap-4"
+        style={{ background: '#1a2235', border: '1px solid rgba(200,215,235,0.12)', maxHeight: '85dvh', overflowY: 'auto' }}
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            {exercise.category && (
+              <p className="text-xs text-slate-500 mb-1">{exercise.category}</p>
+            )}
+            <h2 className="text-xl font-black text-slate-100 leading-tight">{exercise.name}</h2>
+            {exercise.muscles && (
+              <p className="text-xs text-slate-500 mt-1 leading-snug">{exercise.muscles}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="text-slate-600 hover:text-slate-300 text-xl leading-none flex-shrink-0 mt-1">✕</button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="badge bg-slate-800 border border-slate-700 text-slate-300 text-xs">
+            📋 {exercise.sets} подх. × {exercise.duration != null ? `${exercise.duration} сек` : `${exercise.reps} повт.`}
+          </span>
+          {exercise.restSeconds != null && (
+            <span className="badge bg-slate-800 border border-slate-700 text-slate-400 text-xs">⏸ Отдых: {exercise.restSeconds} с</span>
+          )}
+          {exercise.tempo && (
+            <span className="badge bg-slate-800 border border-slate-700 text-slate-500 text-xs italic">🎵 {exercise.tempo}</span>
+          )}
+          {exercise.level && (
+            <span className={`badge bg-slate-800 border border-slate-700 text-xs font-semibold ${
+              exercise.level === 'easy' ? 'text-emerald-400' : exercise.level === 'medium' ? 'text-yellow-400' : 'text-red-400'
+            }`}>
+              {exercise.level === 'easy' ? 'Лёгкий' : exercise.level === 'medium' ? 'Средний' : 'Сложный'}
+            </span>
+          )}
+        </div>
+        {exercise.technique && (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Техника</p>
+            <p className="text-sm text-slate-300 leading-relaxed rounded-xl p-3"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(200,215,230,0.08)' }}>
+              {exercise.technique}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /** Одно упражнение */
 function ExerciseBlock({ exercise, idx, restSeconds, onAllDone, locked }) {
+  const [showDetail, setShowDetail] = React.useState(false)
   const total = exercise.sets
   const isTimed = exercise.duration !== null
   const [done, setDone] = useState(0)
@@ -113,10 +171,16 @@ function ExerciseBlock({ exercise, idx, restSeconds, onAllDone, locked }) {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-slate-600 text-sm w-5 font-mono">{idx + 1}</span>
-            <h4 className={`font-bold text-base ${allDone ? 'line-through text-slate-600' : 'text-slate-100'}`}>
+            <button
+              className={`font-bold text-base text-left leading-snug transition-colors ${
+                allDone ? 'line-through text-slate-600 cursor-default' : 'text-slate-100 hover:text-sky-300 cursor-pointer'
+              }`}
+              onClick={() => !allDone && setShowDetail(true)}
+            >
               {exercise.name}
-            </h4>
+            </button>
           </div>
+          {showDetail && <ExerciseInfoModal exercise={exercise} onClose={() => setShowDetail(false)} />}
           <div className="ml-7 mt-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg"
             style={{ background: 'rgba(120,160,195,0.15)', border: '1px solid rgba(120,160,195,0.25)' }}>
             <span className="text-sm font-bold text-slate-200 tracking-wide">
@@ -189,8 +253,9 @@ function ExerciseBlock({ exercise, idx, restSeconds, onAllDone, locked }) {
                         : 'cursor-not-allowed text-slate-700 border-slate-800 bg-transparent'
                   }`}
                 style={isDone ? {
-                  background: 'rgba(140,165,190,0.12)',
-                  color: '#6b7fa0',
+                  background: 'rgba(40,160,80,0.18)',
+                  color: '#4ade80',
+                  border: '1px solid rgba(60,200,100,0.2)',
                 } : isActive ? {
                   background: 'linear-gradient(135deg, #4a6275, #7a9ab5)',
                   color: '#e2eaf2',
@@ -234,7 +299,7 @@ export default function WorkoutSession({ workout, onFinish }) {
   }, [])
 
   function handleFinish() {
-    logSession(workout.id, workout.name, elapsed)
+    logSession(workout.id, workout.name, elapsed, workout.exercises.length)
     setDone(true)
     setTimeout(onFinish, 1800)
   }

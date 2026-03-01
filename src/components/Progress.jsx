@@ -51,21 +51,49 @@ function WeeklyBar({ sessions }) {
   return (
     <div className="card">
       <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Активность за 7 дней</h3>
-      <div className="flex items-end gap-2 h-24">
-        {days.map((day, i) => (
-          <div key={i} className="flex flex-col items-center gap-1 flex-1">
-            <div
-              className="w-full rounded-t-md transition-all duration-500 min-h-[4px]"
-              style={{
-                height: `${(counts[i] / max) * 80}px`,
-                background: counts[i] > 0
-                  ? 'linear-gradient(180deg, #b8cad9 0%, #7a8fa6 100%)'
-                  : 'rgba(255,255,255,0.04)',
-              }}
-            />
-            <span className="text-xs text-slate-700">{day}</span>
-          </div>
-        ))}
+      <div className="flex items-end gap-2 h-28">
+        {days.map((day, i) => {
+          const isRest = counts[i] === 0
+          return (
+            <div key={i} className="flex flex-col items-center gap-1 flex-1">
+              {isRest ? (
+                <div className="w-full flex flex-col items-center justify-end" style={{ height: '80px' }}>
+                  <div className="w-full rounded-t-md"
+                    style={{
+                      height: '32px',
+                      background: 'rgba(100,200,140,0.07)',
+                      border: '1px dashed rgba(100,200,140,0.18)',
+                      borderBottom: 'none',
+                    }}
+                  />
+                </div>
+              ) : (
+                <div
+                  className="w-full rounded-t-md transition-all duration-500"
+                  style={{
+                    height: `${(counts[i] / max) * 80}px`,
+                    minHeight: '4px',
+                    background: 'linear-gradient(180deg, #b8cad9 0%, #7a8fa6 100%)',
+                  }}
+                />
+              )}
+              <span className={`text-xs ${isRest ? 'text-emerald-800' : 'text-slate-700'}`}>
+                {isRest ? '🌱' : day}
+              </span>
+              {!isRest && (
+                <span className="text-[9px] text-slate-700 -mt-0.5">{day}</span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-800/50">
+        <span className="text-[10px] text-slate-600 flex items-center gap-1">
+          <span className="inline-block w-3 h-2 rounded-sm" style={{ background: 'linear-gradient(90deg,#b8cad9,#7a8fa6)' }} /> Тренировка
+        </span>
+        <span className="text-[10px] text-emerald-800 flex items-center gap-1">
+          🌱 День отдыха
+        </span>
       </div>
     </div>
   )
@@ -76,6 +104,7 @@ export default function Progress() {
 
   const totalTime = sessions.reduce((acc, s) => acc + (s.duration || 0), 0)
   const avgTime = sessions.length ? Math.round(totalTime / sessions.length) : 0
+  const totalExercises = sessions.reduce((acc, s) => acc + (s.exerciseCount || 0), 0)
 
   const counts = {}
   sessions.forEach(s => { counts[s.workoutName] = (counts[s.workoutName] || 0) + 1 })
@@ -84,8 +113,9 @@ export default function Progress() {
   return (
     <div className="flex flex-col gap-5">
       {/* Сводка */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <StatCard value={sessions.length} label="Тренировок" />
+        <StatCard value={totalExercises || '—'} label="Упражнений всего" />
         <StatCard value={formatDuration(totalTime)} label="Общее время" />
         <StatCard value={formatDuration(avgTime)} label="Среднее" />
       </div>
@@ -117,7 +147,15 @@ export default function Progress() {
               <li key={s.id} className="py-3 flex items-center justify-between gap-2">
                 <div>
                   <p className="font-semibold text-slate-200 text-sm">{s.workoutName}</p>
-                  <p className="text-xs text-slate-600">{formatDate(s.date)}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-slate-600">{formatDate(s.date)}</p>
+                    {s.exerciseCount != null && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
+                        style={{ background: 'rgba(120,160,195,0.15)', color: '#94a3b8', border: '1px solid rgba(120,160,195,0.2)' }}>
+                        {s.exerciseCount} упр.
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-bold" style={{ color: '#94a3b8' }}>{formatDuration(s.duration)}</span>
