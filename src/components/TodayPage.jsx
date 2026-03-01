@@ -101,15 +101,12 @@ function ExerciseDetailModal({ ex, onClose, onStart }) {
   function finishRest() { setSession(s => ({ ...s, phase: 'idle' })) }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-3"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}>
-      <div className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 pb-8 flex flex-col gap-4"
-        style={{ background: '#1a2235', border: '1px solid rgba(200,215,235,0.12)', maxHeight: '92dvh', overflowY: 'auto' }}
+      <div className="w-full max-w-lg rounded-3xl p-5 pb-8 flex flex-col gap-4"
+        style={{ background: '#1a2235', border: '1px solid rgba(200,215,235,0.12)', maxHeight: '90dvh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}>
-
-        {/* Ручка */}
-        <div className="w-10 h-1 rounded-full bg-slate-700 mx-auto" />
 
         {/* Заголовок */}
         <div className="flex items-start justify-between gap-3">
@@ -247,7 +244,6 @@ function PlannedExerciseItem({ ex, selKey, onStartExercise }) {
 
 function ExercisePicker({ selKey }) {
   const { exercises, plannedWorkouts, planExercise } = useWorkouts()
-  const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
 
   const planned = plannedWorkouts[selKey] ?? []
@@ -258,16 +254,10 @@ function ExercisePicker({ selKey }) {
   }, [exercises])
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase()
     return exercises.filter(e => {
-      const matchCat = !selectedCategory || e.category === selectedCategory
-      const matchSearch = !q ||
-        e.name.toLowerCase().includes(q) ||
-        e.muscles.toLowerCase().includes(q) ||
-        e.category.toLowerCase().includes(q)
-      return matchCat && matchSearch
+      return !selectedCategory || e.category === selectedCategory
     })
-  }, [exercises, search, selectedCategory])
+  }, [exercises, selectedCategory])
 
   const activePill = {
     background: 'linear-gradient(135deg, #7a8fa6 0%, #b8cad9 50%, #7a8fa6 100%)',
@@ -278,18 +268,8 @@ function ExercisePicker({ selKey }) {
     <div className="flex flex-col gap-3 mt-2 rounded-xl p-3"
       style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(200,215,235,0.1)' }}>
 
-      {/* Поиск */}
-      <input
-        className="input text-sm py-1.5"
-        placeholder="🔍 Поиск упражнений..."
-        value={search}
-        onChange={e => { setSearch(e.target.value); setSelectedCategory(null) }}
-        autoFocus
-      />
-
       {/* Категории-пилюли */}
-      {!search && (
-        <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
           <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Категория</p>
           <div className="flex flex-wrap gap-1.5">
             <button
@@ -314,8 +294,7 @@ function ExercisePicker({ selKey }) {
               </button>
             ))}
           </div>
-        </div>
-      )}
+      </div>
 
       {/* Список упражнений */}
       <div className="flex flex-col gap-1 max-h-60 overflow-y-auto pr-1">

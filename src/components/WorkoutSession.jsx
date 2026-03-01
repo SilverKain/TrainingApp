@@ -117,9 +117,16 @@ function ExerciseBlock({ exercise, idx, restSeconds, onAllDone, locked }) {
               {exercise.name}
             </h4>
           </div>
-          <p className="text-xs text-slate-600 ml-7 mt-0.5">
-            {total} подх. × {isTimed ? `${exercise.duration} сек` : `${exercise.reps} повт.`}
-          </p>
+          <div className="ml-7 mt-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg"
+            style={{ background: 'rgba(120,160,195,0.15)', border: '1px solid rgba(120,160,195,0.25)' }}>
+            <span className="text-sm font-bold text-slate-200 tracking-wide">
+              {total} подх.
+            </span>
+            <span className="text-slate-500 text-xs">×</span>
+            <span className="text-sm font-bold text-slate-200">
+              {isTimed ? `${exercise.duration} сек` : `${exercise.reps} повт.`}
+            </span>
+          </div>
         </div>
         {allDone && (
           <span className="text-lg flex-shrink-0" style={{
