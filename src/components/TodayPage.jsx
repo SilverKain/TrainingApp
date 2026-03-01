@@ -489,26 +489,31 @@ export default function TodayPage({ onStartWorkout }) {
             🔥 {isToday ? 'Выполнено сегодня' : 'Выполнено в этот день'}
           </h3>
           <ul className="divide-y divide-slate-800/60">
-            {sessionsOnDay.map(s => (
-              <li key={s.id} className="py-3 flex flex-col gap-1.5">
-                <p className="font-semibold text-slate-200 text-sm">{s.workoutName}</p>
-                {s.exercises?.length > 0 ? (
-                  <ul className="flex flex-col gap-0.5">
-                    {s.exercises.map((ex, i) => (
-                      <li key={i} className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-slate-400 truncate">{ex.name}</span>
-                        <span className="text-xs font-semibold flex-shrink-0 px-2 py-0.5 rounded-md"
-                          style={{ background: 'rgba(120,160,195,0.12)', color: '#94a3b8', border: '1px solid rgba(120,160,195,0.18)' }}>
-                          {ex.sets} × {ex.duration != null ? `${ex.duration} сек` : `${ex.reps} повт.`}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <span className="text-xs text-slate-500">{fmtDuration(s.duration)}</span>
-                )}
-              </li>
-            ))}
+            {sessionsOnDay.map(s => {
+              const isPlanned = s.workoutId?.startsWith('planned-') || s.workoutName === 'Тренировка по плану'
+              return (
+                <li key={s.id} className="py-3 flex flex-col gap-1.5">
+                  {!isPlanned && (
+                    <p className="font-semibold text-slate-200 text-sm">{s.workoutName}</p>
+                  )}
+                  {s.exercises?.length > 0 ? (
+                    <ul className="flex flex-col gap-0.5">
+                      {s.exercises.map((ex, i) => (
+                        <li key={i} className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-slate-300 font-medium truncate">{ex.name}</span>
+                          <span className="text-xs font-semibold flex-shrink-0 px-2 py-0.5 rounded-md"
+                            style={{ background: 'rgba(120,160,195,0.12)', color: '#94a3b8', border: '1px solid rgba(120,160,195,0.18)' }}>
+                            {ex.sets} × {ex.duration != null ? `${ex.duration} сек` : `${ex.reps} повт.`}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-xs text-slate-500">{fmtDuration(s.duration)}</span>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

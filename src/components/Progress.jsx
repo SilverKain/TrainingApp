@@ -143,37 +143,41 @@ export default function Progress() {
           </div>
         ) : (
           <ul className="divide-y divide-slate-800/50">
-            {sessions.map(s => (
-              <li key={s.id} className="py-3 flex flex-col gap-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-slate-200 text-sm">{s.workoutName}</p>
-                    <p className="text-xs text-slate-600 mt-0.5">{formatDate(s.date)}</p>
+            {sessions.map(s => {
+              const isPlanned = s.workoutId?.startsWith('planned-') || s.workoutName === 'Тренировка по плану'
+              const hasExercises = s.exercises?.length > 0
+              return (
+                <li key={s.id} className="py-3 flex flex-col gap-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      {!isPlanned && (
+                        <p className="font-semibold text-slate-200 text-sm">{s.workoutName}</p>
+                      )}
+                      <p className="text-xs text-slate-600 mt-0.5">{formatDate(s.date)}</p>
+                    </div>
+                    <button
+                      onClick={() => deleteSession(s.id)}
+                      className="text-red-400 hover:text-red-300 transition-colors text-sm flex-shrink-0 mt-0.5"
+                    >✕</button>
                   </div>
-                  <button
-                    onClick={() => deleteSession(s.id)}
-                    className="text-red-400 hover:text-red-300 transition-colors text-sm flex-shrink-0 mt-0.5"
-                  >
-                    ✕
-                  </button>
-                </div>
-                {s.exercises?.length > 0 ? (
-                  <ul className="flex flex-col gap-0.5 mt-0.5">
-                    {s.exercises.map((ex, i) => (
-                      <li key={i} className="flex items-center justify-between gap-2 py-0.5">
-                        <span className="text-xs text-slate-400 truncate">{ex.name}</span>
-                        <span className="text-xs font-semibold flex-shrink-0 px-2 py-0.5 rounded-md"
-                          style={{ background: 'rgba(120,160,195,0.12)', color: '#94a3b8', border: '1px solid rgba(120,160,195,0.18)' }}>
-                          {ex.sets} × {ex.duration != null ? `${ex.duration} сек` : `${ex.reps} повт.`}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <span className="text-xs text-slate-500">{formatDuration(s.duration)}</span>
-                )}
-              </li>
-            ))}
+                  {hasExercises ? (
+                    <ul className="flex flex-col gap-0.5 mt-0.5">
+                      {s.exercises.map((ex, i) => (
+                        <li key={i} className="flex items-center justify-between gap-2 py-0.5">
+                          <span className="text-xs text-slate-300 font-medium truncate">{ex.name}</span>
+                          <span className="text-xs font-semibold flex-shrink-0 px-2 py-0.5 rounded-md"
+                            style={{ background: 'rgba(120,160,195,0.12)', color: '#94a3b8', border: '1px solid rgba(120,160,195,0.18)' }}>
+                            {ex.sets}&nbsp;×&nbsp;{ex.duration != null ? `${ex.duration} сек` : `${ex.reps} повт.`}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-xs text-slate-500">{formatDuration(s.duration)}</span>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>

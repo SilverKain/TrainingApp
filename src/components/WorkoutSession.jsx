@@ -278,7 +278,7 @@ function ExerciseBlock({ exercise, idx, restSeconds, onAllDone, locked }) {
 }
 
 export default function WorkoutSession({ workout, onFinish }) {
-  const { logSession } = useWorkouts()
+  const { logSession, clearDayPlan } = useWorkouts()
   const [elapsed, setElapsed] = useState(0)
   const [done, setDone] = useState(false)
   const [restSeconds, setRestSeconds] = useState(30)
@@ -300,6 +300,9 @@ export default function WorkoutSession({ workout, onFinish }) {
 
   function handleFinish() {
     logSession(workout.id, workout.name, elapsed, workout.exercises.length, workout.exercises)
+    if (workout.id.startsWith('planned-')) {
+      clearDayPlan(workout.id.replace('planned-', ''))
+    }
     setDone(true)
     setTimeout(onFinish, 1800)
   }
