@@ -96,6 +96,8 @@ export default function Calendar({ selectedDate, onDateSelect }) {
           const isSelected = selectedDate && isSameDay(cellDate, selectedDate)
           const hasSession = !cell.faded && sessionDays.has(key)
           const hasPlanned = !cell.faded && plannedDays.has(key)
+          const isPast = !cell.faded && cellDate < today && !isSameDay(cellDate, today)
+          const isRestDay = isPast && !hasSession
 
           let bgStyle = {}
           let borderStyle = 'none'
@@ -107,6 +109,10 @@ export default function Calendar({ selectedDate, onDateSelect }) {
           } else if (hasSession) {
             bgStyle = { background: 'rgba(140,165,190,0.18)' }
             textColor = '#b8cad9'
+          } else if (isRestDay) {
+            bgStyle = { background: 'rgba(60,180,100,0.06)' }
+            textColor = '#2d7a50'
+            borderStyle = '1px dashed rgba(60,180,100,0.2)'
           } else if (isToday) {
             borderStyle = '1.5px solid rgba(160,185,210,0.5)'
             textColor = '#c8dce9'
@@ -135,6 +141,9 @@ export default function Calendar({ selectedDate, onDateSelect }) {
                 {hasPlanned && !hasSession && (
                   <span className="w-1 h-1 rounded-full" style={{ background: isSelected ? '#1e293b' : '#a78bfa' }} />
                 )}
+                {isRestDay && !isSelected && (
+                  <span className="text-[8px] leading-none" style={{ color: '#2d7a50' }}>🌱</span>
+                )}
               </span>
             </button>
           )
@@ -154,6 +163,9 @@ export default function Calendar({ selectedDate, onDateSelect }) {
         <span className="flex items-center gap-1">
           <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ border: '1.5px solid rgba(160,185,210,0.5)' }} />
           Сегодня
+        </span>
+        <span className="flex items-center gap-1">
+          🌱 День отдыха
         </span>
       </div>
     </div>

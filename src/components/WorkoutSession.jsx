@@ -299,7 +299,7 @@ export default function WorkoutSession({ workout, onFinish }) {
   }, [])
 
   function handleFinish() {
-    logSession(workout.id, workout.name, elapsed, workout.exercises.length)
+    logSession(workout.id, workout.name, elapsed, workout.exercises.length, workout.exercises)
     setDone(true)
     setTimeout(onFinish, 1800)
   }

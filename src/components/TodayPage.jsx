@@ -75,7 +75,7 @@ function MiniTimer({ total, onDone, onSkip }) {
 }
 
 /* ── Модальная карточка упражнения ── */
-function ExerciseDetailModal({ ex, onClose, onStart }) {
+function ExerciseDetailModal({ ex, onClose, onComplete }) {
   const lv = LEVEL_LABELS[ex.level]
   const catIcon = CATEGORY_ICONS[ex.category] ?? ''
   const [session, setSession] = useState(null) // null | { setsDone, phase } 'idle'|'rest'
@@ -91,7 +91,8 @@ function ExerciseDetailModal({ ex, onClose, onStart }) {
     const next = (session.setsDone ?? 0) + 1
     if (next >= ex.defaultSets) {
       setSession(null)
-      onClose()
+      if (onComplete) onComplete()
+      else onClose()
     } else if (ex.defaultRest > 0) {
       setSession({ setsDone: next, phase: 'rest' })
     } else {
@@ -178,10 +179,22 @@ function ExerciseDetailModal({ ex, onClose, onStart }) {
 
 /* ── Элемент плана ── */
 function PlannedExerciseItem({ ex, selKey, onStartExercise }) {
-  const { removePlannedExercise } = useWorkouts()
+  const { removePlannedExercise, logSession } = useWorkouts()
   const lv = LEVEL_LABELS[ex.level]
   const catIcon = CATEGORY_ICONS[ex.category] ?? ''
   const [showModal, setShowModal] = useState(false)
+
+  function handleComplete() {
+    setShowModal(false)
+    removePlannedExercise(selKey, ex.id)
+    logSession(
+      'single-' + ex.id,
+      ex.name,
+      0,
+      1,
+      [{ name: ex.name, sets: ex.defaultSets, reps: ex.defaultReps ?? null, duration: ex.defaultDuration ?? null }]
+    )
+  }
 
   return (
     <>
@@ -205,7 +218,7 @@ function PlannedExerciseItem({ ex, selKey, onStartExercise }) {
           </div>
           <button
             onClick={() => removePlannedExercise(selKey, ex.id)}
-            className="text-slate-700 hover:text-red-400 transition-colors text-sm px-1 flex-shrink-0 mt-0.5"
+            className="text-red-400 hover:text-red-300 transition-colors text-sm px-1 flex-shrink-0 mt-0.5"
           >✕</button>
         </div>
 
@@ -235,7 +248,7 @@ function PlannedExerciseItem({ ex, selKey, onStartExercise }) {
         <ExerciseDetailModal
           ex={ex}
           onClose={() => setShowModal(false)}
-          onStart={() => { setShowModal(false); onStartExercise(ex) }}
+          onComplete={handleComplete}
         />
       )}
     </>
@@ -433,7 +446,17 @@ export default function TodayPage({ onStartWorkout }) {
 
         {showPicker && <ExercisePicker selKey={selKey} />}
 
-        {plannedList.length === 0 && !showPicker ? (
+        {plannedList.length === 0 && !showPicker && sessionsOnDay.length > 0 && isToday ? (
+          <div className="flex flex-col items-center gap-2 py-6">
+            <div className="text-4xl">🌟</div>
+            <p className="text-emerald-400 font-bold text-sm">Все упражнения на сегодня выполнены!</p>
+            <p className="text-slate-600 text-xs">Отличная работа 💪</p>
+          </div>
+        ) : plannedList.length === 0 && !showPicker ? (
+          <p className="text-slate-600 text-sm text-center py-5">
+            Упражнений нет. Нажмите «+ Добавить» чтобы выбрать из базы.
+          </p>
+        ) : plannedList.length === 0 && !showPicker ? (
           <p className="text-slate-600 text-sm text-center py-5">
             Упражнений нет. Нажмите «+ Добавить» чтобы выбрать из базы.
           </p>
@@ -467,9 +490,23 @@ export default function TodayPage({ onStartWorkout }) {
           </h3>
           <ul className="divide-y divide-slate-800/60">
             {sessionsOnDay.map(s => (
-              <li key={s.id} className="py-3 flex items-center justify-between">
+              <li key={s.id} className="py-3 flex flex-col gap-1.5">
                 <p className="font-semibold text-slate-200 text-sm">{s.workoutName}</p>
-                <span className="text-xs font-semibold text-slate-400">{fmtDuration(s.duration)}</span>
+                {s.exercises?.length > 0 ? (
+                  <ul className="flex flex-col gap-0.5">
+                    {s.exercises.map((ex, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-slate-400 truncate">{ex.name}</span>
+                        <span className="text-xs font-semibold flex-shrink-0 px-2 py-0.5 rounded-md"
+                          style={{ background: 'rgba(120,160,195,0.12)', color: '#94a3b8', border: '1px solid rgba(120,160,195,0.18)' }}>
+                          {ex.sets} × {ex.duration != null ? `${ex.duration} сек` : `${ex.reps} повт.`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span className="text-xs text-slate-500">{fmtDuration(s.duration)}</span>
+                )}
               </li>
             ))}
           </ul>
