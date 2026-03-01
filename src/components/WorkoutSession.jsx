@@ -278,14 +278,16 @@ function ExerciseBlock({ exercise, idx, restSeconds, onAllDone, locked }) {
 }
 
 export default function WorkoutSession({ workout, onFinish }) {
-  const { logSession, clearDayPlan } = useWorkouts()
+  const { logSession, removePlannedExercise } = useWorkouts()
   const [elapsed, setElapsed] = useState(0)
   const [done, setDone] = useState(false)
   const [restSeconds, setRestSeconds] = useState(30)
   const [interExRestSec, setInterExRestSec] = useState(60)
-  const [interExRest, setInterExRest] = useState(null) // { afterIdx: number } | null
+  const [interExRest, setInterExRest] = useState(null)
+  const [completedIdxs, setCompletedIdxs] = useState(new Set())
 
   function handleExerciseDone(idx) {
+    setCompletedIdxs(prev => { const s = new Set(prev); s.add(idx); return s })
     if (idx < workout.exercises.length - 1 && interExRestSec > 0) {
       setInterExRest({ afterIdx: idx })
     }
@@ -299,9 +301,21 @@ export default function WorkoutSession({ workout, onFinish }) {
   }, [])
 
   function handleFinish() {
-    logSession(workout.id, workout.name, elapsed, workout.exercises.length, workout.exercises)
+    const doneExercises = workout.exercises.filter((_, i) => completedIdxs.has(i))
+    logSession(
+      workout.id,
+      workout.name,
+      elapsed,
+      doneExercises.length || workout.exercises.length,
+      doneExercises.length ? doneExercises : workout.exercises
+    )
     if (workout.id.startsWith('planned-')) {
-      clearDayPlan(workout.id.replace('planned-', ''))
+      const dateKey = workout.id.replace('planned-', '')
+      workout.exercises.forEach((ex, i) => {
+        if (completedIdxs.has(i) && ex.plannedId) {
+          removePlannedExercise(dateKey, ex.plannedId)
+        }
+      })
     }
     setDone(true)
     setTimeout(onFinish, 1800)

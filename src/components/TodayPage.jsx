@@ -178,35 +178,19 @@ function ExerciseDetailModal({ ex, onClose, onComplete }) {
 }
 
 /* ── Элемент плана ── */
-function PlannedExerciseItem({ ex, selKey, onStartExercise }) {
-  const { removePlannedExercise, logSession } = useWorkouts()
+function PlannedExerciseItem({ ex, selKey }) {
+  const { removePlannedExercise } = useWorkouts()
   const lv = LEVEL_LABELS[ex.level]
   const catIcon = CATEGORY_ICONS[ex.category] ?? ''
-  const [showModal, setShowModal] = useState(false)
-
-  function handleComplete() {
-    setShowModal(false)
-    removePlannedExercise(selKey, ex.id)
-    logSession(
-      'single-' + ex.id,
-      ex.name,
-      0,
-      1,
-      [{ name: ex.name, sets: ex.defaultSets, reps: ex.defaultReps ?? null, duration: ex.defaultDuration ?? null }]
-    )
-  }
 
   return (
     <>
       <li className="py-3 flex flex-col gap-2 border-b border-slate-800/60 last:border-0">
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
-            <button
-              className="text-sm font-semibold text-slate-200 text-left hover:text-white transition-colors leading-snug"
-              onClick={() => setShowModal(true)}
-            >
+            <span className="text-sm font-semibold text-slate-200 leading-snug">
               {ex.name}
-            </button>
+            </span>
             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               {ex.category && (
                 <span className="text-[10px] text-slate-500 font-medium">{catIcon} {ex.category}</span>
@@ -243,14 +227,6 @@ function PlannedExerciseItem({ ex, selKey, onStartExercise }) {
           )}
         </div>
       </li>
-
-      {showModal && (
-        <ExerciseDetailModal
-          ex={ex}
-          onClose={() => setShowModal(false)}
-          onComplete={handleComplete}
-        />
-      )}
     </>
   )
 }
@@ -371,6 +347,7 @@ export default function TodayPage({ onStartWorkout }) {
       difficulty: 'intermediate',
       duration: Math.max(20, plannedList.length * 5),
       exercises: plannedList.map(e => ({
+        plannedId: e.id,
         name: e.name,
         sets: e.defaultSets,
         reps: e.defaultReps ?? null,
@@ -464,7 +441,7 @@ export default function TodayPage({ onStartWorkout }) {
           <>
             <ul className="mt-2">
               {plannedList.map(ex => (
-                <PlannedExerciseItem key={ex.id} ex={ex} selKey={selKey} onStartExercise={startSingleExercise} />
+                <PlannedExerciseItem key={ex.id} ex={ex} selKey={selKey} />
               ))}
             </ul>
             {(isToday || isFuture) && (
