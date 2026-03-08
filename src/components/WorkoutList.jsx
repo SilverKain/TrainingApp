@@ -1,6 +1,11 @@
 import { useState, useMemo } from 'react'
 import { useWorkouts } from '../context/WorkoutContext.jsx'
 
+function exImg(image) {
+  if (!image) return null
+  return `${import.meta.env.BASE_URL}exercises/${image}`
+}
+
 const LEVEL_LABELS = {
   easy:   { label: 'Лёгкий',   color: 'bg-emerald-950 text-emerald-400 border-emerald-900' },
   medium: { label: 'Средний',  color: 'bg-yellow-950 text-yellow-400 border-yellow-900' },
@@ -23,49 +28,65 @@ const CATEGORY_ICONS = {
 function ExerciseCard({ exercise }) {
   const [showTechnique, setShowTechnique] = useState(false)
   const level = LEVEL_LABELS[exercise.level] ?? LEVEL_LABELS.medium
+  const imgSrc = exImg(exercise.image)
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl p-4 transition-all duration-200"
+    <div className="flex flex-col rounded-2xl overflow-hidden transition-all duration-200"
       style={{
         background: 'rgba(255,255,255,0.04)',
         border: '1px solid rgba(200,215,230,0.1)',
         boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
       }}>
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="font-bold text-sm text-slate-100 leading-tight">{exercise.name}</h3>
-        <span className={`badge border text-xs flex-shrink-0 ${level.color}`}>{level.label}</span>
-      </div>
 
-      <p className="text-xs text-slate-500 leading-snug">{exercise.muscles}</p>
-
-      <div className="flex flex-wrap gap-1.5 text-xs">
-        <span className="badge bg-slate-800 border border-slate-700 text-slate-400">
-          {exercise.defaultSets} ×{' '}
-          {exercise.defaultReps != null
-            ? `${exercise.defaultReps} повт.`
-            : `${exercise.defaultDuration} сек.`}
-        </span>
-        <span className="badge bg-slate-800 border border-slate-700 text-slate-400">
-          ⏸ {exercise.defaultRest} с
-        </span>
-        <span className="badge bg-slate-800 border border-slate-700 text-slate-500 italic">
-          {exercise.defaultTempo}
-        </span>
-      </div>
-
-      <button
-        className="text-slate-600 hover:text-slate-300 text-xs text-left font-medium transition-colors"
-        onClick={() => setShowTechnique(s => !s)}
-      >
-        {showTechnique ? '▲ Скрыть технику' : '▾ Показать технику'}
-      </button>
-
-      {showTechnique && (
-        <p className="text-xs text-slate-300 leading-relaxed rounded-xl p-3"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(200,215,230,0.08)' }}>
-          {exercise.technique}
-        </p>
+      {/* Изображение упражнения */}
+      {imgSrc && (
+        <div className="w-full overflow-hidden" style={{ height: '200px' }}>
+          <img
+            src={imgSrc}
+            alt={exercise.name}
+            className="w-full h-full object-cover object-center"
+            loading="lazy"
+          />
+        </div>
       )}
+
+      <div className="flex flex-col gap-3 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-bold text-sm text-slate-100 leading-tight">{exercise.name}</h3>
+          <span className={`badge border text-xs flex-shrink-0 ${level.color}`}>{level.label}</span>
+        </div>
+
+        <p className="text-xs text-slate-500 leading-snug">{exercise.muscles}</p>
+
+        <div className="flex flex-wrap gap-1.5 text-xs">
+          <span className="badge bg-slate-800 border border-slate-700 text-slate-400">
+            {exercise.defaultSets} ×{' '}
+            {exercise.defaultReps != null
+              ? `${exercise.defaultReps} повт.`
+              : `${exercise.defaultDuration} сек.`}
+          </span>
+          <span className="badge bg-slate-800 border border-slate-700 text-slate-400">
+            ⏸ {exercise.defaultRest} с
+          </span>
+          <span className="badge bg-slate-800 border border-slate-700 text-slate-500 italic">
+            {exercise.defaultTempo}
+          </span>
+        </div>
+
+        <button
+          className="text-slate-600 hover:text-slate-300 text-xs text-left font-medium transition-colors"
+          onClick={() => setShowTechnique(s => !s)}
+        >
+          {showTechnique ? '▲ Скрыть технику' : '▾ Показать технику'}
+        </button>
+
+        {showTechnique && (
+          <p className="text-xs text-slate-300 leading-relaxed rounded-xl p-3"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(200,215,230,0.08)' }}>
+            {exercise.technique}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

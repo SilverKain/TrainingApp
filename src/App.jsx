@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AuthProvider }    from './context/AuthContext.jsx'
 import { WorkoutProvider } from './context/WorkoutContext.jsx'
 import Navbar from './components/Navbar.jsx'
 import Landing from './components/Landing.jsx'
@@ -89,8 +90,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <WorkoutProvider>
-      <AppContent />
-    </WorkoutProvider>
+    <AuthProvider>
+      <WorkoutProvider>
+        <AppContent />
+      </WorkoutProvider>
+    </AuthProvider>
   )
 }

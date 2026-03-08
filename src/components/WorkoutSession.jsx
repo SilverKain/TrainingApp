@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useWorkouts } from '../context/WorkoutContext.jsx'
 
+function exImg(image) {
+  if (!image) return null
+  return `${import.meta.env.BASE_URL}exercises/${image}`
+}
+
 function pad(n) { return String(n).padStart(2, '0') }
 function fmtTotal(sec) {
   const m = Math.floor(sec / 60), s = sec % 60
@@ -70,9 +75,18 @@ function ExerciseInfoModal({ exercise, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center px-3"
       style={{ background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}>
-      <div className="w-full max-w-lg rounded-3xl p-5 pb-7 flex flex-col gap-4"
-        style={{ background: '#1a2235', border: '1px solid rgba(200,215,235,0.12)', maxHeight: '85dvh', overflowY: 'auto' }}
+      <div className="w-full max-w-lg rounded-3xl overflow-hidden flex flex-col"
+        style={{ background: '#1a2235', border: '1px solid rgba(200,215,235,0.12)', maxHeight: '85dvh' }}
         onClick={e => e.stopPropagation()}>
+
+        {/* Изображение упражнения */}
+        {exImg(exercise.image) && (
+          <div className="w-full flex-shrink-0" style={{ height: '180px', background: 'rgba(0,0,0,0.4)' }}>
+            <img src={exImg(exercise.image)} alt={exercise.name} className="w-full h-full object-cover object-center" />
+          </div>
+        )}
+
+        <div className="p-5 pb-7 flex flex-col gap-4 overflow-y-auto">
         <div className="flex items-start justify-between gap-3">
           <div>
             {exercise.category && (
@@ -112,6 +126,7 @@ function ExerciseInfoModal({ exercise, onClose }) {
             </p>
           </div>
         )}
+        </div>{/* end p-5 */}
       </div>
     </div>
   )
@@ -167,10 +182,19 @@ function ExerciseBlock({ exercise, idx, restSeconds, onAllDone, locked }) {
         boxShadow: allDone ? 'none' : '0 2px 16px rgba(0,0,0,0.2)',
       }}>
 
+      {/* Картинка упражнения */}
+      {exImg(exercise.image) && (
+        <div className="w-full rounded-xl overflow-hidden mb-3"
+             style={{ height: '130px' }}>
+          <img src={exImg(exercise.image)} alt={exercise.name}
+               className="w-full h-full object-cover object-center" loading="lazy" />
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-2 mb-3">
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-slate-600 text-sm w-5 font-mono">{idx + 1}</span>
+            <span className="text-slate-600 text-sm w-5 font-mono flex-shrink-0">{idx + 1}</span>
             <button
               className={`font-bold text-base text-left leading-snug transition-colors ${
                 allDone ? 'line-through text-slate-600 cursor-default' : 'text-slate-100 hover:text-sky-300 cursor-pointer'

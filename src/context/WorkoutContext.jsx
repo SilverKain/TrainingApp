@@ -1,8 +1,12 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
+import { doc, setDoc, onSnapshot } from 'firebase/firestore'
+import { db } from '../firebase.js'
+import { useAuth } from './AuthContext.jsx'
 import exercisesData from '../../exercises_db.json'
 
 const ALL_EXERCISES = exercisesData.exercises
 
+// ─── Дефолтные тренировки ────────────────────────────────────────────────────
 const DEFAULT_WORKOUTS = [
   {
     id: 'w1',
@@ -86,26 +90,17 @@ const DEFAULT_WORKOUTS = [
   },
 ]
 
-const WorkoutContext = createContext(null)
+const WORKOUTS_VERSION = 'v2'
+const PLANNED_VERSION  = 'v3-march2026'
 
-const WORKOUTS_VERSION = 'v2' // bump this to reset saved workouts
-const PLANNED_VERSION  = 'v2-march2026' // bump to reset planned schedule
-
-// Разминки для тренировки A (верх тела): марш, махи руками, локти, кисти
 const WARMUP_A_IDS = ['e33', 'e43', 'e35', 'e36']
-// Разминки для тренировки B (низ тела): ходьба, тазобедренные, колени, динамические приседания
 const WARMUP_B_IDS = ['e49', 'e38', 'e39', 'e41']
-// Разминки для тренировки C (полное тело): марш, вращение корпусом, наклоны, выпады
 const WARMUP_C_IDS = ['e33', 'e37', 'e44', 'e46']
 
-// Тренировка A — Верх тела (Пн): Грудь, плечи, спина, трицепс
 const WORKOUT_A_IDS = [...WARMUP_A_IDS, 'e01', 'e04', 'e08', 'e12', 'e06']
-// Тренировка B — Низ тела (Ср): Квадрицепс, ягодицы, бёдра, икры
 const WORKOUT_B_IDS = [...WARMUP_B_IDS, 'e13', 'e17', 'e14', 'e16', 'e18']
-// Тренировка C — Полное тело (Пт): Всё тело
 const WORKOUT_C_IDS = [...WARMUP_C_IDS, 'e13', 'e01', 'e17', 'e21', 'e20', 'e26']
 
-// График март 2026: 3 раза в неделю (Пн/Ср/Пт), начало 2 марта
 const MARCH_SCHEDULE = {
   '2026-03-02': WORKOUT_A_IDS, '2026-03-04': WORKOUT_B_IDS, '2026-03-06': WORKOUT_C_IDS,
   '2026-03-09': WORKOUT_A_IDS, '2026-03-11': WORKOUT_B_IDS, '2026-03-13': WORKOUT_C_IDS,
@@ -122,53 +117,106 @@ function buildDefaultPlannedWorkouts() {
   return result
 }
 
+function loadLocalWorkouts() {
+  try {
+    const ver = localStorage.getItem('workoutsVersion')
+    const saved = localStorage.getItem('workouts')
+    if (ver === WORKOUTS_VERSION && saved) return JSON.parse(saved)
+  } catch {}
+  return DEFAULT_WORKOUTS
+}
+
+function loadLocalSessions() {
+  try {
+    const saved = localStorage.getItem('sessions')
+    return saved ? JSON.parse(saved) : []
+  } catch { return [] }
+}
+
+function loadLocalPlanned() {
+  try {
+    const ver = localStorage.getItem('plannedVersion')
+    const saved = localStorage.getItem('plannedWorkouts')
+    if (ver === PLANNED_VERSION && saved) return JSON.parse(saved)
+  } catch {}
+  return buildDefaultPlannedWorkouts()
+}
+
+const WorkoutContext = createContext(null)
+
 export function WorkoutProvider({ children }) {
-  const [workouts, setWorkouts] = useState(() => {
-    try {
-      const ver = localStorage.getItem('workoutsVersion')
-      const saved = localStorage.getItem('workouts')
-      if (ver === WORKOUTS_VERSION && saved) return JSON.parse(saved)
-      return DEFAULT_WORKOUTS
-    } catch {
-      return DEFAULT_WORKOUTS
-    }
-  })
+  const { user } = useAuth()
 
-  const [sessions, setSessions] = useState(() => {
-    try {
-      const saved = localStorage.getItem('sessions')
-      return saved ? JSON.parse(saved) : []
-    } catch {
-      return []
-    }
-  })
+  const [workouts,        setWorkouts]        = useState(loadLocalWorkouts)
+  const [sessions,        setSessions]        = useState(loadLocalSessions)
+  const [plannedWorkouts, setPlannedWorkouts] = useState(loadLocalPlanned)
 
-  // plannedWorkouts: { [YYYY-MM-DD]: [exercise, ...] }
-  const [plannedWorkouts, setPlannedWorkouts] = useState(() => {
-    try {
-      const ver = localStorage.getItem('plannedVersion')
-      const saved = localStorage.getItem('plannedWorkouts')
-      if (ver === PLANNED_VERSION && saved) return JSON.parse(saved)
-      return buildDefaultPlannedWorkouts()
-    } catch {
-      return buildDefaultPlannedWorkouts()
-    }
-  })
+  const firestoreLoaded = useRef(false)
+  const saveTimer       = useRef(null)
 
+  // ── localStorage (offline / без входа) ──────────────────────────────────────
   useEffect(() => {
+    if (user) return
     localStorage.setItem('workouts', JSON.stringify(workouts))
     localStorage.setItem('workoutsVersion', WORKOUTS_VERSION)
-  }, [workouts])
+  }, [workouts, user])
 
   useEffect(() => {
+    if (user) return
     localStorage.setItem('sessions', JSON.stringify(sessions))
-  }, [sessions])
+  }, [sessions, user])
 
   useEffect(() => {
+    if (user) return
     localStorage.setItem('plannedWorkouts', JSON.stringify(plannedWorkouts))
     localStorage.setItem('plannedVersion', PLANNED_VERSION)
-  }, [plannedWorkouts])
+  }, [plannedWorkouts, user])
 
+  // ── Firestore: realtime sync ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user) { firestoreLoaded.current = false; return }
+
+    firestoreLoaded.current = false
+
+    const userRef = doc(db, 'users', user.uid)
+
+    const unsub = onSnapshot(userRef, snap => {
+      if (snap.exists()) {
+        const data = snap.data()
+        if (Array.isArray(data.workouts))       setWorkouts(data.workouts)
+        if (Array.isArray(data.sessions))       setSessions(data.sessions)
+        if (data.plannedWorkouts && typeof data.plannedWorkouts === 'object')
+          setPlannedWorkouts(data.plannedWorkouts)
+      } else {
+        // Первый вход — мигрируем localStorage → Firestore
+        setDoc(userRef, {
+          workouts:        loadLocalWorkouts(),
+          sessions:        loadLocalSessions(),
+          plannedWorkouts: loadLocalPlanned(),
+        }).catch(console.error)
+      }
+      firestoreLoaded.current = true
+    }, err => {
+      console.error('Firestore error:', err)
+    })
+
+    return unsub
+  }, [user])
+
+  // ── Debounced write to Firestore ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !firestoreLoaded.current) return
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      setDoc(
+        doc(db, 'users', user.uid),
+        { workouts, sessions, plannedWorkouts },
+        { merge: true }
+      ).catch(console.error)
+    }, 1000)
+  }, [workouts, sessions, plannedWorkouts, user])
+
+  // ── Actions ──────────────────────────────────────────────────────────────────
   function addWorkout(workout) {
     const newWorkout = { ...workout, id: 'w' + Date.now() }
     setWorkouts(prev => [...prev, newWorkout])
@@ -228,3 +276,4 @@ export function WorkoutProvider({ children }) {
 export function useWorkouts() {
   return useContext(WorkoutContext)
 }
+

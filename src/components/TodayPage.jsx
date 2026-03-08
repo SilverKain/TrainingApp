@@ -2,6 +2,11 @@
 import { useWorkouts } from '../context/WorkoutContext.jsx'
 import Calendar from './Calendar.jsx'
 
+function exImg(image) {
+  if (!image) return null
+  return `${import.meta.env.BASE_URL}exercises/${image}`
+}
+
 const CATEGORY_ICONS = {
   'Грудь':      '💪',
   'Спина':      '🔙',
@@ -105,10 +110,18 @@ function ExerciseDetailModal({ ex, onClose, onComplete }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center px-3"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}>
-      <div className="w-full max-w-lg rounded-3xl p-5 pb-8 flex flex-col gap-4"
-        style={{ background: '#1a2235', border: '1px solid rgba(200,215,235,0.12)', maxHeight: '90dvh', overflowY: 'auto' }}
+      <div className="w-full max-w-lg rounded-3xl overflow-hidden flex flex-col"
+        style={{ background: '#1a2235', border: '1px solid rgba(200,215,235,0.12)', maxHeight: '90dvh' }}
         onClick={e => e.stopPropagation()}>
 
+        {/* Изображение упражнения */}
+        {exImg(ex.image) && (
+          <div className="w-full flex-shrink-0" style={{ height: '180px', background: 'rgba(0,0,0,0.4)' }}>
+            <img src={exImg(ex.image)} alt={ex.name} className="w-full h-full object-cover object-center" />
+          </div>
+        )}
+
+        <div className="p-5 pb-8 flex flex-col gap-4 overflow-y-auto">
         {/* Заголовок */}
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -172,6 +185,7 @@ function ExerciseDetailModal({ ex, onClose, onComplete }) {
             )}
           </div>
         )}
+        </div>{/* end p-5 content */}
       </div>
     </div>
   )
@@ -186,7 +200,8 @@ function PlannedExerciseItem({ ex, selKey }) {
   return (
     <>
       <li className="py-3 flex flex-col gap-2 border-b border-slate-800/60 last:border-0">
-        <div className="flex items-start gap-3">
+        {/* Заголовок с кнопкой удаления */}
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <span className="text-sm font-semibold text-slate-200 leading-snug">
               {ex.name}
@@ -205,6 +220,18 @@ function PlannedExerciseItem({ ex, selKey }) {
             className="text-red-400 hover:text-red-300 transition-colors text-sm px-1 flex-shrink-0 mt-0.5"
           >✕</button>
         </div>
+        {/* Картинка под названием */}
+        {exImg(ex.image) ? (
+          <div className="w-full rounded-xl overflow-hidden"
+               style={{ height: '140px' }}>
+            <img src={exImg(ex.image)} alt={ex.name} className="w-full h-full object-cover object-center" />
+          </div>
+        ) : (
+          <div className="w-full rounded-xl flex items-center justify-center text-3xl"
+               style={{ height: '60px', background: 'rgba(255,255,255,0.04)' }}>
+            {catIcon || '🏋️'}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-1.5">
           <span className="badge bg-slate-800 border border-slate-700/60 text-slate-300 text-xs">
@@ -291,10 +318,23 @@ function ExercisePicker({ selKey }) {
           <p className="text-slate-600 text-xs text-center py-4">Упражнения не найдены</p>
         ) : filtered.map(ex => {
           const added = planned.some(p => p.id === ex.id)
+          const imgSrc = exImg(ex.image)
           return (
             <div key={ex.id}
-              className="flex items-center justify-between gap-2 py-2 px-2 rounded-lg transition-colors"
+              className="flex items-center gap-2 py-1.5 px-2 rounded-lg transition-colors"
               style={{ background: added ? 'rgba(100,160,120,0.12)' : 'transparent' }}>
+              {/* Миниатюра */}
+              {imgSrc ? (
+                <div className="flex-shrink-0 w-9 h-9 rounded-lg overflow-hidden"
+                     style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(200,215,230,0.08)' }}>
+                  <img src={imgSrc} alt={ex.name} className="w-full h-full object-cover object-center" loading="lazy" />
+                </div>
+              ) : (
+                <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-lg"
+                     style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  {CATEGORY_ICONS[ex.category] || '🏋️'}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-slate-200 truncate">{ex.name}</p>
                 <p className="text-[10px] text-slate-500 truncate">{ex.muscles}</p>
@@ -358,6 +398,7 @@ export default function TodayPage({ onStartWorkout }) {
         level: e.level ?? null,
         category: e.category ?? null,
         tempo: e.defaultTempo ?? null,
+        image: e.image ?? null,
       })),
     }
     onStartWorkout(workout)
@@ -372,7 +413,7 @@ export default function TodayPage({ onStartWorkout }) {
       category: 'custom',
       difficulty: ex.level ?? 'intermediate',
       duration: Math.max(5, Math.ceil(totalSec / 60)),
-      exercises: [{ name: ex.name, sets: ex.defaultSets, reps: ex.defaultReps ?? null, duration: ex.defaultDuration ?? null, restSeconds: ex.defaultRest ?? 30, muscles: ex.muscles ?? null, technique: ex.technique ?? null, level: ex.level ?? null, category: ex.category ?? null, tempo: ex.defaultTempo ?? null }],
+      exercises: [{ name: ex.name, sets: ex.defaultSets, reps: ex.defaultReps ?? null, duration: ex.defaultDuration ?? null, restSeconds: ex.defaultRest ?? 30, muscles: ex.muscles ?? null, technique: ex.technique ?? null, level: ex.level ?? null, category: ex.category ?? null, tempo: ex.defaultTempo ?? null, image: ex.image ?? null }],
     })
   }
 
