@@ -16,7 +16,7 @@ const ACTIVE_BTN = {
   boxShadow: '0 2px 10px rgba(140,170,200,0.25)',
 }
 
-export default function Navbar({ page, setPage }) {
+export default function Navbar({ page, onNavigate }) {
   const activePage = ['session', 'create'].includes(page) ? 'home' : page
 
   return (
@@ -38,7 +38,7 @@ export default function Navbar({ page, setPage }) {
             {NAV_ITEMS.map(item => (
               <button
                 key={item.key}
-                onClick={() => setPage(item.key)}
+                onClick={() => onNavigate(item.key)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                   activePage === item.key
                     ? 'text-slate-900 font-bold'
@@ -83,7 +83,7 @@ export default function Navbar({ page, setPage }) {
           return (
             <button
               key={item.key}
-              onClick={() => setPage(item.key)}
+              onClick={() => onNavigate(item.key)}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 relative transition-colors duration-150"
               style={{ color: isActive ? '#b8cad9' : '#475569' }}
             >

@@ -55,7 +55,7 @@ function getGreeting() {
   return 'Доброй ночи'
 }
 
-export default function Landing({ setPage }) {
+export default function Landing({ onNavigate }) {
   const { user, logOut } = useAuth()
   const [showAuth, setShowAuth] = useState(false)
   const today = new Date()
@@ -153,7 +153,7 @@ export default function Landing({ setPage }) {
         {MENU.map((item, i) => (
           <button
             key={item.key}
-            onClick={() => setPage(item.key)}
+            onClick={() => onNavigate(item.key)}
             className={`group relative overflow-hidden rounded-2xl p-5 text-left transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br ${item.gradient}`}
             style={{
               border: '1px solid rgba(200,215,230,0.12)',

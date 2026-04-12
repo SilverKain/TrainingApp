@@ -1,10 +1,7 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useWorkouts } from '../context/WorkoutContext.jsx'
-
-function exImg(image) {
-  if (!image) return null
-  return `${import.meta.env.BASE_URL}exercises/${image}`
-}
+import { useExerciseImages } from '../hooks/useExerciseImages.js'
+import { getExerciseImage } from '../utils/exerciseImage.js'
 
 const LEVEL_LABELS = {
   easy:   { label: 'Лёгкий',   color: 'bg-emerald-950 text-emerald-400 border-emerald-900' },
@@ -28,10 +25,40 @@ const CATEGORY_ICONS = {
 function ExerciseCard({ exercise }) {
   const [showTechnique, setShowTechnique] = useState(false)
   const level = LEVEL_LABELS[exercise.level] ?? LEVEL_LABELS.medium
-  const imgSrc = exImg(exercise.image)
+  const [imageVersion, setImageVersion] = useState(0)
+  const imgSrc = getExerciseImage(exercise)
+
+  const { uploadImage, removeImage, uploading } = useExerciseImages()
+  const [showImageMenu, setShowImageMenu] = useState(false)
+  const inputRef = useRef(null)
+
+  // Закрытие меню при клике вне
+  useEffect(() => {
+    if (!showImageMenu) return
+    const handler = () => setShowImageMenu(false)
+    const t = setTimeout(() => document.addEventListener('click', handler), 0)
+    return () => { clearTimeout(t); document.removeEventListener('click', handler) }
+  }, [showImageMenu])
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    uploadImage(exercise.id, file).then(() => {
+      e.target.value = ''
+      setShowImageMenu(false)
+      setImageVersion(v => v + 1)
+    }).catch(err => console.error(err))
+  }
+
+  function handleRemoveImage() {
+    removeImage(exercise.id).then(() => {
+      setShowImageMenu(false)
+      setImageVersion(v => v + 1)
+    }).catch(err => console.error(err))
+  }
 
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden transition-all duration-200"
+    <div className="flex flex-col rounded-2xl overflow-hidden transition-all duration-200 relative"
       style={{
         background: 'rgba(255,255,255,0.04)',
         border: '1px solid rgba(200,215,230,0.1)',
@@ -40,15 +67,65 @@ function ExerciseCard({ exercise }) {
 
       {/* Изображение упражнения */}
       {imgSrc && (
-        <div className="w-full overflow-hidden" style={{ height: '200px' }}>
+        <div className="w-full overflow-hidden relative" style={{ height: '200px' }}>
           <img
             src={imgSrc}
             alt={exercise.name}
             className="w-full h-full object-cover object-center"
             loading="lazy"
           />
+          {/* Кнопка управления картинкой */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowImageMenu(s => !s) }}
+            className="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
+            style={{ background: 'rgba(0,0,0,0.6)', color: '#e2eaf2', border: '1px solid rgba(200,215,230,0.15)' }}
+            title="Изменить картинку"
+          >
+            📷
+          </button>
+
+          {showImageMenu && (
+            <div
+              className="absolute top-11 right-2 rounded-xl overflow-hidden z-10 flex flex-col"
+              style={{ background: '#1a2235', border: '1px solid rgba(200,215,235,0.15)', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading === exercise.id}
+                className="px-3 py-2 text-xs text-slate-200 hover:bg-slate-700/50 transition-colors text-left disabled:opacity-50"
+              >
+                {uploading === exercise.id ? '⏳ Загрузка...' : '📤 Загрузить новую'}
+              </button>
+              <button
+                onClick={handleRemoveImage}
+                className="px-3 py-2 text-xs text-red-400 hover:bg-slate-700/50 transition-colors text-left border-t border-slate-700/50"
+              >
+                🗑 Удалить картинку
+              </button>
+            </div>
+          )}
         </div>
       )}
+
+      {!imgSrc && (
+        <button
+          onClick={() => inputRef.current?.click()}
+          className="w-full flex items-center justify-center py-8 text-slate-600 hover:text-slate-400 transition-colors"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(200,215,230,0.1)' }}
+          title="Добавить картинку"
+        >
+          📷 Добавить картинку
+        </button>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
 
       <div className="flex flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">

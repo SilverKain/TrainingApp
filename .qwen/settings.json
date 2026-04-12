@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(timeout *)",
+      "Bash(tasklist)",
+      "Bash(findstr *)",
+      "Bash(npx *)",
+      "Bash(firebase *)",
+      "Bash(npm install *)"
+    ]
+  },
+  "$version": 3
+}

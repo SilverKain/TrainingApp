@@ -91,7 +91,7 @@ const DEFAULT_WORKOUTS = [
 ]
 
 const WORKOUTS_VERSION = 'v2'
-const PLANNED_VERSION  = 'v3-march2026'
+const PLANNED_VERSION  = 'v4-april2026'
 
 const WARMUP_A_IDS = ['e33', 'e43', 'e35', 'e36']
 const WARMUP_B_IDS = ['e49', 'e38', 'e39', 'e41']
@@ -109,9 +109,20 @@ const MARCH_SCHEDULE = {
   '2026-03-30': WORKOUT_A_IDS,
 }
 
+const APRIL_SCHEDULE = {
+  // Первая половина (1–12): Ср, Пт, Пн, Ср, Пт
+  '2026-04-01': WORKOUT_B_IDS, '2026-04-03': WORKOUT_C_IDS,
+  '2026-04-06': WORKOUT_A_IDS, '2026-04-08': WORKOUT_B_IDS, '2026-04-10': WORKOUT_C_IDS,
+  // Вторая половина (13–30): Пн, Ср, Пт
+  '2026-04-13': WORKOUT_A_IDS, '2026-04-15': WORKOUT_B_IDS, '2026-04-17': WORKOUT_C_IDS,
+  '2026-04-20': WORKOUT_A_IDS, '2026-04-22': WORKOUT_B_IDS, '2026-04-24': WORKOUT_C_IDS,
+  '2026-04-27': WORKOUT_A_IDS, '2026-04-29': WORKOUT_B_IDS,
+}
+
 function buildDefaultPlannedWorkouts() {
   const result = {}
-  for (const [date, ids] of Object.entries(MARCH_SCHEDULE)) {
+  const combined = { ...MARCH_SCHEDULE, ...APRIL_SCHEDULE }
+  for (const [date, ids] of Object.entries(combined)) {
     result[date] = ids.map(id => ALL_EXERCISES.find(e => e.id === id)).filter(Boolean)
   }
   return result
@@ -142,6 +153,13 @@ function loadLocalPlanned() {
   return buildDefaultPlannedWorkouts()
 }
 
+function loadLocalGroups() {
+  try {
+    const saved = localStorage.getItem('exerciseGroups')
+    return saved ? JSON.parse(saved) : []
+  } catch { return [] }
+}
+
 const WorkoutContext = createContext(null)
 
 export function WorkoutProvider({ children }) {
@@ -150,6 +168,7 @@ export function WorkoutProvider({ children }) {
   const [workouts,        setWorkouts]        = useState(loadLocalWorkouts)
   const [sessions,        setSessions]        = useState(loadLocalSessions)
   const [plannedWorkouts, setPlannedWorkouts] = useState(loadLocalPlanned)
+  const [exerciseGroups,  setExerciseGroups]  = useState(loadLocalGroups)
 
   const firestoreLoaded = useRef(false)
   const saveTimer       = useRef(null)
@@ -172,6 +191,11 @@ export function WorkoutProvider({ children }) {
     localStorage.setItem('plannedVersion', PLANNED_VERSION)
   }, [plannedWorkouts, user])
 
+  useEffect(() => {
+    if (user) return
+    localStorage.setItem('exerciseGroups', JSON.stringify(exerciseGroups))
+  }, [exerciseGroups, user])
+
   // ── Firestore: realtime sync ─────────────────────────────────────────────────
   useEffect(() => {
     if (!user) { firestoreLoaded.current = false; return }
@@ -187,12 +211,14 @@ export function WorkoutProvider({ children }) {
         if (Array.isArray(data.sessions))       setSessions(data.sessions)
         if (data.plannedWorkouts && typeof data.plannedWorkouts === 'object')
           setPlannedWorkouts(data.plannedWorkouts)
+        if (Array.isArray(data.exerciseGroups)) setExerciseGroups(data.exerciseGroups)
       } else {
         // Первый вход — мигрируем localStorage → Firestore
         setDoc(userRef, {
           workouts:        loadLocalWorkouts(),
           sessions:        loadLocalSessions(),
           plannedWorkouts: loadLocalPlanned(),
+          exerciseGroups:  loadLocalGroups(),
         }).catch(console.error)
       }
       firestoreLoaded.current = true
@@ -210,11 +236,11 @@ export function WorkoutProvider({ children }) {
     saveTimer.current = setTimeout(() => {
       setDoc(
         doc(db, 'users', user.uid),
-        { workouts, sessions, plannedWorkouts },
+        { workouts, sessions, plannedWorkouts, exerciseGroups },
         { merge: true }
       ).catch(console.error)
     }, 1000)
-  }, [workouts, sessions, plannedWorkouts, user])
+  }, [workouts, sessions, plannedWorkouts, exerciseGroups, user])
 
   // ── Actions ──────────────────────────────────────────────────────────────────
   function addWorkout(workout) {
@@ -262,11 +288,69 @@ export function WorkoutProvider({ children }) {
     setPlannedWorkouts(prev => ({ ...prev, [dateKey]: [] }))
   }
 
+  // ── Exercise Groups CRUD ─────────────────────────────────────────────────────
+  function createGroup(name, exerciseIds) {
+    const group = {
+      id: 'g' + Date.now(),
+      name,
+      exerciseIds: exerciseIds || [],
+      createdAt: new Date().toISOString(),
+    }
+    setExerciseGroups(prev => [...prev, group])
+  }
+
+  function updateGroup(groupId, updates) {
+    setExerciseGroups(prev =>
+      prev.map(g => g.id === groupId ? { ...g, ...updates } : g)
+    )
+  }
+
+  function deleteGroup(groupId) {
+    setExerciseGroups(prev => prev.filter(g => g.id !== groupId))
+  }
+
+  function addExerciseToGroup(groupId, exerciseId) {
+    setExerciseGroups(prev =>
+      prev.map(g =>
+        g.id === groupId && !g.exerciseIds.includes(exerciseId)
+          ? { ...g, exerciseIds: [...g.exerciseIds, exerciseId] }
+          : g
+      )
+    )
+  }
+
+  function removeExerciseFromGroup(groupId, exerciseId) {
+    setExerciseGroups(prev =>
+      prev.map(g =>
+        g.id === groupId
+          ? { ...g, exerciseIds: g.exerciseIds.filter(id => id !== exerciseId) }
+          : g
+      )
+    )
+  }
+
+  function addGroupToPlan(dateKey, group) {
+    const exercisesToAdd = group.exerciseIds
+      .map(id => ALL_EXERCISES.find(e => e.id === id))
+      .filter(Boolean)
+
+    setPlannedWorkouts(prev => {
+      const existing = prev[dateKey] ?? []
+      const existingIds = new Set(existing.map(e => e.id))
+      const newExercises = exercisesToAdd.filter(e => !existingIds.has(e.id))
+      if (newExercises.length === 0) return prev
+      return { ...prev, [dateKey]: [...existing, ...newExercises] }
+    })
+  }
+
   return (
     <WorkoutContext.Provider value={{
-      workouts, sessions, exercises: ALL_EXERCISES, plannedWorkouts,
+      workouts, sessions, exercises: ALL_EXERCISES, plannedWorkouts, exerciseGroups,
       addWorkout, deleteWorkout, logSession, deleteSession,
       planExercise, removePlannedExercise, clearDayPlan,
+      createGroup, updateGroup, deleteGroup,
+      addExerciseToGroup, removeExerciseFromGroup,
+      addGroupToPlan,
     }}>
       {children}
     </WorkoutContext.Provider>

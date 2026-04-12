@@ -1,11 +1,9 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkouts } from '../context/WorkoutContext.jsx'
 import Calendar from './Calendar.jsx'
-
-function exImg(image) {
-  if (!image) return null
-  return `${import.meta.env.BASE_URL}exercises/${image}`
-}
+import ExerciseGroupManager from './ExerciseGroupManager.jsx'
+import ExercisePickerCard from './ExercisePickerCard.jsx'
+import { getExerciseImage } from '../utils/exerciseImage.js'
 
 const CATEGORY_ICONS = {
   'Грудь':      '💪',
@@ -115,9 +113,9 @@ function ExerciseDetailModal({ ex, onClose, onComplete }) {
         onClick={e => e.stopPropagation()}>
 
         {/* Изображение упражнения */}
-        {exImg(ex.image) && (
+        {getExerciseImage(ex) && (
           <div className="w-full flex-shrink-0" style={{ height: '180px', background: 'rgba(0,0,0,0.4)' }}>
-            <img src={exImg(ex.image)} alt={ex.name} className="w-full h-full object-cover object-center" />
+            <img src={getExerciseImage(ex)} alt={ex.name} className="w-full h-full object-cover object-center" />
           </div>
         )}
 
@@ -221,10 +219,10 @@ function PlannedExerciseItem({ ex, selKey }) {
           >✕</button>
         </div>
         {/* Картинка под названием */}
-        {exImg(ex.image) ? (
+        {getExerciseImage(ex) ? (
           <div className="w-full rounded-xl overflow-hidden"
                style={{ height: '140px' }}>
-            <img src={exImg(ex.image)} alt={ex.name} className="w-full h-full object-cover object-center" />
+            <img src={getExerciseImage(ex)} alt={ex.name} className="w-full h-full object-cover object-center" />
           </div>
         ) : (
           <div className="w-full rounded-xl flex items-center justify-center text-3xl"
@@ -259,10 +257,11 @@ function PlannedExerciseItem({ ex, selKey }) {
 }
 
 function ExercisePicker({ selKey }) {
-  const { exercises, plannedWorkouts, planExercise } = useWorkouts()
+  const { exercises, plannedWorkouts, planExercise, removePlannedExercise } = useWorkouts()
   const [selectedCategory, setSelectedCategory] = useState(null)
 
   const planned = plannedWorkouts[selKey] ?? []
+  const plannedIdsSet = new Set(planned.map(p => p.id))
 
   // Все категории из базы
   const categories = useMemo(() => {
@@ -275,17 +274,25 @@ function ExercisePicker({ selKey }) {
     })
   }, [exercises, selectedCategory])
 
+  function handleToggle(ex) {
+    if (plannedIdsSet.has(ex.id)) {
+      removePlannedExercise(selKey, ex.id)
+    } else {
+      planExercise(selKey, ex)
+    }
+  }
+
   const activePill = {
     background: 'linear-gradient(135deg, #7a8fa6 0%, #b8cad9 50%, #7a8fa6 100%)',
     color: '#0f1a26',
   }
 
   return (
-    <div className="flex flex-col gap-3 mt-2 rounded-xl p-3"
-      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(200,215,235,0.1)' }}>
+    <div className="flex flex-col gap-3 mt-2 rounded-xl p-3 overflow-y-auto"
+      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(200,215,235,0.1)', maxHeight: 'calc(100vh - 280px)' }}>
 
-      {/* Категории-пилюли */}
-      <div className="flex flex-col gap-1.5">
+      {/* Категории-пилюли — фиксированные */}
+      <div className="flex flex-col gap-1.5 flex-shrink-0">
           <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Категория</p>
           <div className="flex flex-wrap gap-1.5">
             <button
@@ -312,50 +319,22 @@ function ExercisePicker({ selKey }) {
           </div>
       </div>
 
-      {/* Список упражнений */}
-      <div className="flex flex-col gap-1 max-h-60 overflow-y-auto pr-1">
-        {filtered.length === 0 ? (
-          <p className="text-slate-600 text-xs text-center py-4">Упражнения не найдены</p>
-        ) : filtered.map(ex => {
-          const added = planned.some(p => p.id === ex.id)
-          const imgSrc = exImg(ex.image)
-          return (
-            <div key={ex.id}
-              className="flex items-center gap-2 py-1.5 px-2 rounded-lg transition-colors"
-              style={{ background: added ? 'rgba(100,160,120,0.12)' : 'transparent' }}>
-              {/* Миниатюра */}
-              {imgSrc ? (
-                <div className="flex-shrink-0 w-9 h-9 rounded-lg overflow-hidden"
-                     style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(200,215,230,0.08)' }}>
-                  <img src={imgSrc} alt={ex.name} className="w-full h-full object-cover object-center" loading="lazy" />
-                </div>
-              ) : (
-                <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-lg"
-                     style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  {CATEGORY_ICONS[ex.category] || '🏋️'}
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-slate-200 truncate">{ex.name}</p>
-                <p className="text-[10px] text-slate-500 truncate">{ex.muscles}</p>
-              </div>
-              <button
-                onClick={() => !added && planExercise(selKey, ex)}
-                className={`flex-shrink-0 w-7 h-7 rounded-lg text-sm font-bold transition-all duration-150 ${
-                  added
-                    ? 'text-emerald-400 bg-emerald-950/60'
-                    : 'text-slate-900 hover:scale-110'
-                }`}
-                style={!added ? {
-                  background: 'linear-gradient(135deg,#7a8fa6,#b8cad9)',
-                } : {}}
-              >
-                {added ? '✓' : '+'}
-              </button>
-            </div>
-          )
-        })}
-      </div>
+      {/* Сетка карточек */}
+      {filtered.length === 0 ? (
+        <p className="text-slate-600 text-xs text-center py-4">Упражнения не найдены</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 pr-1">
+          {filtered.map(ex => (
+            <ExercisePickerCard
+              key={ex.id}
+              ex={ex}
+              isAdded={plannedIdsSet.has(ex.id)}
+              onToggle={() => handleToggle(ex)}
+              size="sm"
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -370,6 +349,12 @@ export default function TodayPage({ onStartWorkout }) {
   const todayKey = dateKey(today)
   const isToday = selKey === todayKey
   const isFuture = selectedDate > today && !isToday
+
+  // Передаём selKey для менеджера групп (чтобы кнопка «добавить в план» работала)
+  useEffect(() => {
+    window.__selKeyForGroups = selKey
+    return () => { delete window.__selKeyForGroups }
+  }, [selKey])
 
   const plannedList = plannedWorkouts[selKey] ?? []
 
@@ -499,6 +484,8 @@ export default function TodayPage({ onStartWorkout }) {
         )}
       </div>
 
+      {/* Менеджер групп упражнений */}
+      <ExerciseGroupManager />
 
       {/* Выполненные сессии в этот день */}
       {sessionsOnDay.length > 0 && (

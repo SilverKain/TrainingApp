@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useWorkouts } from '../context/WorkoutContext.jsx'
-
-function exImg(image) {
-  if (!image) return null
-  return `${import.meta.env.BASE_URL}exercises/${image}`
-}
+import { getExerciseImage } from '../utils/exerciseImage.js'
 
 function pad(n) { return String(n).padStart(2, '0') }
 function fmtTotal(sec) {
@@ -80,9 +76,9 @@ function ExerciseInfoModal({ exercise, onClose }) {
         onClick={e => e.stopPropagation()}>
 
         {/* Изображение упражнения */}
-        {exImg(exercise.image) && (
+        {getExerciseImage(exercise) && (
           <div className="w-full flex-shrink-0" style={{ height: '180px', background: 'rgba(0,0,0,0.4)' }}>
-            <img src={exImg(exercise.image)} alt={exercise.name} className="w-full h-full object-cover object-center" />
+            <img src={getExerciseImage(exercise)} alt={exercise.name} className="w-full h-full object-cover object-center" />
           </div>
         )}
 
@@ -183,10 +179,10 @@ function ExerciseBlock({ exercise, idx, restSeconds, onAllDone, locked }) {
       }}>
 
       {/* Картинка упражнения */}
-      {exImg(exercise.image) && (
+      {getExerciseImage(exercise) && (
         <div className="w-full rounded-xl overflow-hidden mb-3"
              style={{ height: '130px' }}>
-          <img src={exImg(exercise.image)} alt={exercise.name}
+          <img src={getExerciseImage(exercise)} alt={exercise.name}
                className="w-full h-full object-cover object-center" loading="lazy" />
         </div>
       )}
@@ -301,7 +297,7 @@ function ExerciseBlock({ exercise, idx, restSeconds, onAllDone, locked }) {
   )
 }
 
-export default function WorkoutSession({ workout, onFinish }) {
+export default function WorkoutSession({ workout, onFinish, onCancel }) {
   const { logSession, removePlannedExercise } = useWorkouts()
   const [elapsed, setElapsed] = useState(0)
   const [done, setDone] = useState(false)
@@ -450,7 +446,7 @@ export default function WorkoutSession({ workout, onFinish }) {
       </button>
       <button
         className="text-slate-700 hover:text-slate-400 text-sm text-center transition-colors pb-4"
-        onClick={onFinish}
+        onClick={onCancel || onFinish}
       >
         Отменить
       </button>
